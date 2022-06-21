@@ -9,7 +9,7 @@ import "./MultipleNFT.sol";
 import "./SingleNFT.sol";
 
 interface INFTCollection {
-	function initialize(string memory _name, string memory _uri, address creator, bool bPublic) external;	
+	function initialize(string memory _name, string memory _uri, address creator, uint256 royalties, bool bPublic) external;	
 }
 
 contract NFTFactory is Ownable {
@@ -19,8 +19,8 @@ contract NFTFactory is Ownable {
 	uint256 private mintFee;	
 	
 	/** Events */
-    event MultiCollectionCreated(address collection_address, address owner, string name, string uri, bool isPublic);
-    event SingleCollectionCreated(address collection_address, address owner, string name, string uri, bool isPublic);
+    event MultiCollectionCreated(address collection_address, address owner, string name, string uri, uint256 royalties, bool isPublic);
+    event SingleCollectionCreated(address collection_address, address owner, string name, string uri, uint256 royalties, bool isPublic);
     
 	constructor () {		
 		mintFee = 0 ether;		
@@ -34,7 +34,7 @@ contract NFTFactory is Ownable {
        	mintFee = _mintFee;
     }
 
-	function createMultipleCollection(string memory _name, string memory _uri, bool bPublic) external returns(address collection) {
+	function createMultipleCollection(string memory _name, string memory _uri, uint256 royalties, bool bPublic) external returns(address collection) {
 		if(bPublic){
 			require(owner() == msg.sender, "Only owner can create public collection");	
 		}		
@@ -43,12 +43,12 @@ contract NFTFactory is Ownable {
         assembly {
             collection := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        INFTCollection(collection).initialize(_name, _uri, msg.sender, bPublic);
+        INFTCollection(collection).initialize(_name, _uri, msg.sender, royalties, bPublic);
 		collections.push(collection);
-		emit MultiCollectionCreated(collection, msg.sender, _name, _uri, bPublic);
+		emit MultiCollectionCreated(collection, msg.sender, _name, _uri, royalties, bPublic);
 	}
 
-	function createSingleCollection(string memory _name, string memory _uri, bool bPublic) external returns(address collection) {
+	function createSingleCollection(string memory _name, string memory _uri, uint256 royalties, bool bPublic) external returns(address collection) {
 		if(bPublic){
 			require(owner() == msg.sender, "Only owner can create public collection");	
 		}		
@@ -57,10 +57,10 @@ contract NFTFactory is Ownable {
         assembly {
             collection := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        INFTCollection(collection).initialize(_name, _uri, msg.sender, bPublic);
+        INFTCollection(collection).initialize(_name, _uri, msg.sender, royalties, bPublic);
 		collections.push(collection);
 		
-		emit SingleCollectionCreated(collection, msg.sender, _name, _uri, bPublic);
+		emit SingleCollectionCreated(collection, msg.sender, _name, _uri, royalties, bPublic);
 	}
 
 	function withdrawBNB() external onlyOwner {
