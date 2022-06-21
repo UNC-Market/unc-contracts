@@ -10,7 +10,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IMultipleNFT {
 	function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes calldata data) external;
-	function balanceOf(address account, uint256 id) external view returns (uint256);	
+	function balanceOf(address account, uint256 id) external view returns (uint256);
+	function getRoyalties() external view returns (uint256);	
+    function getOwner() external view returns (address);	
 }
 
 contract MultipleFixed is Ownable, ERC1155Holder {
@@ -18,7 +20,7 @@ contract MultipleFixed is Ownable, ERC1155Holder {
 	using EnumerableSet for EnumerableSet.AddressSet;
 
 	uint256 constant public PERCENTS_DIVIDER = 1000;
-	uint256 public swapFee = 15;	// 1.5 %
+	uint256 public swapFee = 25;	// 2.5 %
 	address public feeAddress; 	
 
     /* Pairs to swap NFT _id => price */
@@ -93,15 +95,23 @@ contract MultipleFixed is Ownable, ERC1155Holder {
 
 		Pair memory item = pairs[_id];
 		uint256 tokenAmount = item.price.mul(_amount);
-		uint256 feeAmount = tokenAmount.mul(swapFee).div(PERCENTS_DIVIDER);		
-		uint256 ownerAmount = tokenAmount.sub(feeAmount);
+		
+		uint256 collectionRoyalties = getCollectionRoyalties(pairs[_id].collection);
+        address collectionOwner = getCollectionOwner(pairs[_id].collection);
+
+		uint256 feeAmount = tokenAmount.mul(swapFee).div(PERCENTS_DIVIDER);
+		uint256 creatorAmount = tokenAmount.mul(collectionRoyalties).div(PERCENTS_DIVIDER);        		
+		uint256 ownerAmount = tokenAmount.sub(feeAmount).sub(creatorAmount);
 
 		if (pairs[_id].tokenAdr == address(0x0)) {
             require(msg.value >= tokenAmount, "too small amount");
 
 			if(swapFee > 0) {
 				payable(feeAddress).transfer(feeAmount);			
-			}					
+			}	
+			if(collectionRoyalties > 0) {
+				payable(collectionOwner).transfer(creatorAmount);	
+			}				
 			payable(item.owner).transfer(ownerAmount);			
         } else {
             IERC20 governanceToken = IERC20(pairs[_id].tokenAdr);	
@@ -110,6 +120,11 @@ contract MultipleFixed is Ownable, ERC1155Holder {
 			// transfer governance token to admin
 			if(swapFee > 0) {
 				require(governanceToken.transfer(feeAddress, feeAmount));		
+			}
+
+			if(collectionRoyalties > 0) {
+				// transfer governance token to creator
+				require(governanceToken.transfer(collectionOwner, creatorAmount));				
 			}
 			
 			// transfer governance token to owner		
@@ -124,6 +139,24 @@ contract MultipleFixed is Ownable, ERC1155Holder {
 			pairs[_id].bValid = false;
 		}		
         emit MultiItemSwapped(msg.sender, _id, _amount, pairs[_id]);
+    }
+
+	function getCollectionRoyalties(address collection) view private returns(uint256) {
+        IMultipleNFT nft = IMultipleNFT(collection); 
+        try nft.getRoyalties() returns (uint256 value) {
+            return value;
+        } catch {
+            return 0;
+        }
+    }
+
+    function getCollectionOwner(address collection) view private returns(address) {
+        IMultipleNFT nft = IMultipleNFT(collection); 
+        try nft.getOwner() returns (address ownerAddress) {
+            return ownerAddress;
+        } catch {
+            return address(0x0);
+        }
     }
 
 }
