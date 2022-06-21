@@ -26,7 +26,9 @@ contract MultipleNFT is ERC1155, AccessControl {
     string public name;
     bool public isPublic;
     address public factory;
-    address public owner;
+    address private owner;
+    uint256 private royalties = 0; // 10 for 1%
+
     uint256 public currentID;
     mapping (uint256 => Item) public Items;
 
@@ -45,7 +47,7 @@ contract MultipleNFT is ERC1155, AccessControl {
     /**
 		Initialize from Swap contract
 	 */
-    function initialize(string memory _name, string memory _uri, address creator, bool bPublic ) external {
+    function initialize(string memory _name, string memory _uri, address creator, uint256 _royalties, bool bPublic ) external {
         require(msg.sender == factory, "Only for factory");
         require(initialisable, "initialize() can be called only one time.");
 		initialisable = false;
@@ -53,6 +55,7 @@ contract MultipleNFT is ERC1155, AccessControl {
         _setURI(_uri);
         name = _name;
         owner = creator;
+        royalties = _royalties;
         isPublic = bPublic;
 
         _setupRole(DEFAULT_ADMIN_ROLE, owner);
@@ -165,6 +168,14 @@ contract MultipleNFT is ERC1155, AccessControl {
         Items[id].supply = Items[id].supply - amount;
 		return true;
 	}
+
+    function getRoyalties() public view returns (uint256) {
+        return royalties;
+    }
+
+    function getOwner() public view returns (address) {
+        return owner;
+    }
 
     modifier onlyOwner() {
         require(owner == _msgSender(), "caller is not the owner");
