@@ -10,7 +10,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ISingleNFT {
 	function safeTransferFrom(address from, address to, uint256 tokenId) external;
-    function ownerOf(uint256 tokenId) external view returns (address);   
+    function ownerOf(uint256 tokenId) external view returns (address);  
+	function getRoyalties() external view returns (uint256);	
+    function getOwner() external view returns (address); 
 }
 
 contract SingleFixed is Ownable, ERC721Holder {
@@ -19,7 +21,7 @@ contract SingleFixed is Ownable, ERC721Holder {
 
 	uint256 constant public PERCENTS_DIVIDER = 1000;
 
-	uint256 public swapFee = 15; // 1.5%	
+	uint256 public swapFee = 25; // 2.5%	
 	address public feeAddress; 
 	
     /* Pairs to swap NFT _id => price */
@@ -88,15 +90,24 @@ contract SingleFixed is Ownable, ERC721Holder {
 
 		Pair memory pair = pairs[_id];
 		uint256 totalAmount = pair.price;
+
+		uint256 collectionRoyalties = getCollectionRoyalties(pairs[_id].collection);
+        address collectionOwner = getCollectionOwner(pairs[_id].collection);
+
+
 		uint256 feeAmount = totalAmount.mul(swapFee).div(PERCENTS_DIVIDER);		
-		uint256 ownerAmount = totalAmount.sub(feeAmount);
+		uint256 creatorAmount = totalAmount.mul(collectionRoyalties).div(PERCENTS_DIVIDER);
+        uint256 ownerAmount = totalAmount.sub(feeAmount).sub(creatorAmount);
 
 		if (pairs[_id].tokenAdr == address(0x0)) {
             require(msg.value >= totalAmount, "too small amount");
 
 			if(swapFee > 0) {
 				payable(feeAddress).transfer(feeAmount);	
-			}					
+			}	
+			if(collectionRoyalties > 0) {
+				payable(collectionOwner).transfer(creatorAmount);	
+			}				
 			payable(pair.owner).transfer(ownerAmount);
 
         } else {
@@ -107,6 +118,11 @@ contract SingleFixed is Ownable, ERC721Holder {
 			if(swapFee > 0) {
 				// transfer governance token to feeAddress
 				require(governanceToken.transfer(feeAddress, feeAmount));				
+			}
+
+			if(collectionRoyalties > 0) {
+				// transfer governance token to creator
+				require(governanceToken.transfer(collectionOwner, creatorAmount));				
 			}
 			
 			// transfer governance token to owner
@@ -120,6 +136,25 @@ contract SingleFixed is Ownable, ERC721Holder {
 		pairs[_id].bValid = false;		
 
         emit SingleSwapped(msg.sender, pair);		
+    }
+
+
+	function getCollectionRoyalties(address collection) view private returns(uint256) {
+        ISingleNFT nft = ISingleNFT(collection); 
+        try nft.getRoyalties() returns (uint256 value) {
+            return value;
+        } catch {
+            return 0;
+        }
+    }
+
+    function getCollectionOwner(address collection) view private returns(address) {
+        ISingleNFT nft = ISingleNFT(collection); 
+        try nft.getOwner() returns (address ownerAddress) {
+            return ownerAddress;
+        } catch {
+            return address(0x0);
+        }
     }
 
 	modifier OnlyItemOwner(address tokenAddress, uint256 tokenId){
