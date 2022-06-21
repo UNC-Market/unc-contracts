@@ -17,7 +17,8 @@ contract SingleNFT is ERC721 {
     string private collection_uri;
     bool public isPublic;
     address public factory;
-    address public owner;
+    address private owner;
+    uint256 private royalties = 0; // 10 for 1%
 
     struct Item {
         uint256 id;
@@ -46,6 +47,7 @@ contract SingleNFT is ERC721 {
         string memory _name,
         string memory _uri,
         address creator,
+        uint256 _royalties,
         bool bPublic
     ) external {
         require(msg.sender == factory, "Only for factory");
@@ -55,6 +57,7 @@ contract SingleNFT is ERC721 {
         collection_uri = _uri;
         collection_name = _name;
         owner = creator;
+        royalties = _royalties;
         isPublic = bPublic;
     }
 
@@ -119,6 +122,13 @@ contract SingleNFT is ERC721 {
         owner = _newOwner;        
     } 
 
+    function getRoyalties() public view returns (uint256) {
+        return royalties;
+    }
+    function getOwner() public view returns (address) {
+        return owner;
+    }
+    
     modifier onlyOwner() {
         require(owner == _msgSender(), "caller is not the owner");
         _;
