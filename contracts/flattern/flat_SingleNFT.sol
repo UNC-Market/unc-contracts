@@ -1,6 +1,6 @@
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -33,7 +33,7 @@ interface IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -184,7 +184,7 @@ interface IERC721 is IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -221,7 +221,7 @@ abstract contract ERC165 is IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -296,7 +296,7 @@ library Strings {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -328,7 +328,7 @@ abstract contract Context {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -558,7 +558,7 @@ library Address {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -593,7 +593,7 @@ interface IERC721Metadata is IERC721 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -628,7 +628,7 @@ interface IERC721Receiver {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -863,7 +863,7 @@ library SafeMath {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -1316,7 +1316,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleNFT.sol
 */
 
 // SingleNFT token
@@ -1338,7 +1338,8 @@ contract SingleNFT is ERC721 {
     string private collection_uri;
     bool public isPublic;
     address public factory;
-    address public owner;
+    address private owner;
+    uint256 private royalties = 0; // 10 for 1%
 
     struct Item {
         uint256 id;
@@ -1367,6 +1368,7 @@ contract SingleNFT is ERC721 {
         string memory _name,
         string memory _uri,
         address creator,
+        uint256 _royalties,
         bool bPublic
     ) external {
         require(msg.sender == factory, "Only for factory");
@@ -1376,6 +1378,7 @@ contract SingleNFT is ERC721 {
         collection_uri = _uri;
         collection_name = _name;
         owner = creator;
+        royalties = _royalties;
         isPublic = bPublic;
     }
 
@@ -1440,6 +1443,13 @@ contract SingleNFT is ERC721 {
         owner = _newOwner;        
     } 
 
+    function getRoyalties() public view returns (uint256) {
+        return royalties;
+    }
+    function getOwner() public view returns (address) {
+        return owner;
+    }
+    
     modifier onlyOwner() {
         require(owner == _msgSender(), "caller is not the owner");
         _;

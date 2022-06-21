@@ -1,6 +1,6 @@
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -35,7 +35,7 @@ interface IERC721Receiver {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -67,7 +67,7 @@ abstract contract Context {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -100,7 +100,7 @@ interface IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -190,7 +190,7 @@ interface IERC20 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -226,7 +226,7 @@ contract ERC721Holder is IERC721Receiver {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -310,7 +310,7 @@ abstract contract Ownable is Context {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -675,7 +675,7 @@ library EnumerableSet {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -910,7 +910,7 @@ library SafeMath {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -1059,7 +1059,7 @@ interface IERC721 is IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\SingleAuction.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\SingleAuction.sol
 */
 
 // SingleNFT Auction Contract 
@@ -1075,7 +1075,9 @@ pragma solidity ^0.8.0;
 ////import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ISingleNFT {
-	function safeTransferFrom(address from, address to, uint256 tokenId) external;   
+	function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function getRoyalties() external view returns (uint256);	
+    function getOwner() external view returns (address);	   
 }
 
 contract SingleAuction is Ownable, ERC721Holder {
@@ -1084,7 +1086,7 @@ contract SingleAuction is Ownable, ERC721Holder {
 
     uint256 constant public PERCENTS_DIVIDER = 1000;
     uint256 constant public MIN_BID_INCREMENT_PERCENT = 10; // 1%
-	uint256 public swapFee = 15;	// 1.5%
+	uint256 public swapFee = 25;	// 2.5%
 	address public feeAddress;    	
     
     // AuctionBid struct to hold bidder and amount
@@ -1193,8 +1195,13 @@ contract SingleAuction is Ownable, ERC721Holder {
             AuctionBid memory lastBid = auctionBids[_auctionId][bidsLength - 1];
             
             // % commission cut
-            uint256 _feeValue = lastBid.bidPrice.mul(swapFee).div(PERCENTS_DIVIDER);            
-            uint256 _sellerValue = lastBid.bidPrice.sub(_feeValue);
+            uint256 collectionRoyalties = getCollectionRoyalties(myAuction.collectionId);
+            address collectionOwner = getCollectionOwner(myAuction.collectionId);
+
+
+            uint256 _feeValue = lastBid.bidPrice.mul(swapFee).div(PERCENTS_DIVIDER); 
+            uint256 _creatorValue = lastBid.bidPrice.mul(collectionRoyalties).div(PERCENTS_DIVIDER);
+            uint256 _sellerValue = lastBid.bidPrice.sub(_feeValue).sub(_creatorValue);
             
             if (myAuction.tokenAdr == address(0x0)) {
                 
@@ -1202,13 +1209,16 @@ contract SingleAuction is Ownable, ERC721Holder {
                 if(_feeValue > 0){
                     payable(feeAddress).transfer(_feeValue);          
                 }
-                     
+                if(_creatorValue > 0){
+                    payable(collectionOwner).transfer(_creatorValue);          
+                }                     
                 
             } else {
                 IERC20 governanceToken = IERC20(myAuction.tokenAdr);
 
                 require(governanceToken.transfer(myAuction.owner, _sellerValue), "transfer to seller failed");
-                if(_feeValue > 0) require(governanceToken.transfer(feeAddress, _feeValue));               
+                if(_feeValue > 0) require(governanceToken.transfer(feeAddress, _feeValue)); 
+                if(_creatorValue > 0) require(governanceToken.transfer(collectionOwner, _creatorValue));              
             }
             
             // approve and transfer from this contract to the bid winner 
@@ -1319,6 +1329,24 @@ contract SingleAuction is Ownable, ERC721Holder {
             return (lastBid.bidPrice, lastBid.from);
         }    
         return (0, address(0));
+    }
+
+    function getCollectionRoyalties(address collection) view private returns(uint256) {
+        ISingleNFT nft = ISingleNFT(collection); 
+        try nft.getRoyalties() returns (uint256 value) {
+            return value;
+        } catch {
+            return 0;
+        }
+    }
+
+    function getCollectionOwner(address collection) view private returns(address) {
+        ISingleNFT nft = ISingleNFT(collection); 
+        try nft.getOwner() returns (address ownerAddress) {
+            return ownerAddress;
+        } catch {
+            return address(0x0);
+        }
     }
     
     /**

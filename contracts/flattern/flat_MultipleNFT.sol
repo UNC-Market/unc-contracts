@@ -1,6 +1,6 @@
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -33,7 +33,7 @@ interface IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -70,7 +70,7 @@ abstract contract ERC165 is IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -145,7 +145,7 @@ library Strings {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -177,7 +177,7 @@ abstract contract Context {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -273,7 +273,7 @@ interface IAccessControl {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -406,7 +406,7 @@ interface IERC1155 is IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -636,7 +636,7 @@ library Address {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -666,7 +666,7 @@ interface IERC1155MetadataURI is IERC1155 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -732,7 +732,7 @@ interface IERC1155Receiver is IERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -967,7 +967,7 @@ library SafeMath {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -1210,7 +1210,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
             
 ////// SPDX-License-Identifier-FLATTEN-SUPPRESS-WARNING: MIT
@@ -1727,7 +1727,7 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
 
 
 /** 
- *  SourceUnit: d:\GitWork\04-organization\05-AlFinchellarRMO\rmo-contracts\contracts\MultipleNFT.sol
+ *  SourceUnit: d:\GitWork\04-organization\07-UNC-Market\unc-contracts\contracts\MultipleNFT.sol
 */
 
 // MultipleNFT token
@@ -1758,7 +1758,9 @@ contract MultipleNFT is ERC1155, AccessControl {
     string public name;
     bool public isPublic;
     address public factory;
-    address public owner;
+    address private owner;
+    uint256 private royalties = 0; // 10 for 1%
+
     uint256 public currentID;
     mapping (uint256 => Item) public Items;
 
@@ -1777,7 +1779,7 @@ contract MultipleNFT is ERC1155, AccessControl {
     /**
 		Initialize from Swap contract
 	 */
-    function initialize(string memory _name, string memory _uri, address creator, bool bPublic ) external {
+    function initialize(string memory _name, string memory _uri, address creator, uint256 _royalties, bool bPublic ) external {
         require(msg.sender == factory, "Only for factory");
         require(initialisable, "initialize() can be called only one time.");
 		initialisable = false;
@@ -1785,6 +1787,7 @@ contract MultipleNFT is ERC1155, AccessControl {
         _setURI(_uri);
         name = _name;
         owner = creator;
+        royalties = _royalties;
         isPublic = bPublic;
 
         _setupRole(DEFAULT_ADMIN_ROLE, owner);
@@ -1897,6 +1900,14 @@ contract MultipleNFT is ERC1155, AccessControl {
         Items[id].supply = Items[id].supply - amount;
 		return true;
 	}
+
+    function getRoyalties() public view returns (uint256) {
+        return royalties;
+    }
+
+    function getOwner() public view returns (address) {
+        return owner;
+    }
 
     modifier onlyOwner() {
         require(owner == _msgSender(), "caller is not the owner");
