@@ -196,4 +196,9 @@ contract MultipleNFT is ERC1155, AccessControl {
         );
         _;
     }
+
+    /**
+     * @dev To receive ETH
+     */
+    receive() external payable {}
 }

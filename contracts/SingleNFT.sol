@@ -143,4 +143,8 @@ contract SingleNFT is ERC721 {
         );
         _;
     }
+    /**
+     * @dev To receive ETH
+     */
+    receive() external payable {}
 }

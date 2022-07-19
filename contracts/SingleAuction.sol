@@ -304,4 +304,8 @@ contract SingleAuction is Ownable, ERC721Holder {
         require(tokenOwner == msg.sender);
         _;
     }
+    /**
+     * @dev To receive ETH
+     */
+    receive() external payable {}
 }

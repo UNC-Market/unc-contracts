@@ -159,4 +159,9 @@ contract MultipleFixed is Ownable, ERC1155Holder {
         }
     }
 
+	/**
+     * @dev To receive ETH
+     */
+    receive() external payable {}
+
 }

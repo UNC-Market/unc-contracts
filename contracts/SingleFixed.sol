@@ -167,5 +167,9 @@ contract SingleFixed is Ownable, ERC721Holder {
         require(id <= currentPairId && pairs[id].pairId == id, "Could not find item");
         _;
     }
+	/**
+     * @dev To receive ETH
+     */
+    receive() external payable {}
 
 }
