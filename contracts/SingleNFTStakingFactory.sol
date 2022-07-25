@@ -8,7 +8,18 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./SingleNFTStaking.sol";
 
 interface ISingleNFTStaking {
-	function initialize(string memory _name, string memory _uri, address creator, uint256 royalties, bool bPublic) external;	
+	function initialize(
+		address _stakeNftAddress, 
+		address _rewardTokenAddress,
+		uint256 _stakeNftPrice,
+		uint256 _apr,
+		address _creatorAddress,
+		uint256 _maxStakedNfts,
+		uint256 _maxNftsPerUser,
+		uint256 _depositFeePerNft,
+		uint256 _withdrawFeePerNft,
+		uint256 _startTime,
+		uint256 _endTime) external;	
 }
 
 contract SingleNFTStakingFactory is Ownable {
@@ -40,7 +51,19 @@ contract SingleNFTStakingFactory is Ownable {
 	event SubscriptionDeleted(uint256 subscriptionsId);
 	event SubscriptionUpdated(uint256 subscriptionsId, Subscription subscription);
     
-	event SingleNFTStakingCreated(address collection_address, address owner, string name, string uri, uint256 royalties, bool isPublic);
+	event SingleNFTStakingCreated(
+		address _stake_address, 
+		address _stakeNftAddress, 
+		address _rewardTokenAddress,
+		uint256 _stakeNftPrice,
+		uint256 _apr,
+		address _creatorAddress,
+		uint256 _maxStakedNfts,
+		uint256 _maxNftsPerUser,
+		uint256 _depositFeePerNft,
+		uint256 _withdrawFeePerNft,
+		uint256 _startTime,
+		uint256 _endTime);
     
 	constructor (address _adminFeeAddress) {
 		adminFeeAddress = _adminFeeAddress;		
@@ -91,22 +114,22 @@ contract SingleNFTStakingFactory is Ownable {
         emit SubscriptionCreated(_subscriptions[currentSubscriptionsId]);
     }
 
-	function deleteSubscription(uint256 _subscriptionsId) external onlyOwner {
-		require(_subscriptions[_subscriptionsId].bValid, "not exist");
-        _subscriptions[_subscriptionsId].bValid = false;        
+	function deleteSubscription(uint256 _subscriptionId) external onlyOwner {
+		require(_subscriptions[_subscriptionId].bValid, "not exist");
+        _subscriptions[_subscriptionId].bValid = false;        
         
-        _subscriptionIndices.remove(_subscriptionsId);
-        emit SubscriptionDeleted(_subscriptionsId);
+        _subscriptionIndices.remove(_subscriptionId);
+        emit SubscriptionDeleted(_subscriptionId);
     }
 
-	function updateSubscription(uint256 _subscriptionsId, string memory _name, uint256 _period, uint256 _price) external onlyOwner {        
-        require(_subscriptions[_subscriptionsId].bValid, "not exist");
+	function updateSubscription(uint256 _subscriptionId, string memory _name, uint256 _period, uint256 _price) external onlyOwner {        
+        require(_subscriptions[_subscriptionId].bValid, "not exist");
 
-        _subscriptions[_subscriptionsId].name = _name;
-		_subscriptions[_subscriptionsId].period = _period;
-		_subscriptions[_subscriptionsId].price = _price;    
+        _subscriptions[_subscriptionId].name = _name;
+		_subscriptions[_subscriptionId].period = _period;
+		_subscriptions[_subscriptionId].price = _price;    
         
-        emit SubscriptionUpdated(_subscriptionsId, _subscriptions[_subscriptionsId]);
+        emit SubscriptionUpdated(_subscriptionId, _subscriptions[_subscriptionId]);
     }
 
 	function subscriptionCount() view public returns(uint256) {
@@ -121,12 +144,12 @@ contract SingleNFTStakingFactory is Ownable {
 		return _subscriptions[_subscriptionId];
 	}
 
-	function allSubscriptions() view public returns(Subscription[] memory cards) {
-        uint256 cardsCount = cardKeyCount();
-        cards = new Card[](cardsCount);        
+	function allSubscriptions() view public returns(Subscription[] memory scriptions) {
+        uint256 scriptionCount = subscriptionCount();
+        scriptions = new Subscription[](scriptionCount);        
 
-        for(uint i = 0; i < cardsCount; i++) {
-            cards[i] = _cards[cardKeyWithIndex(i)];           
+        for(uint i = 0; i < scriptionCount; i++) {
+            scriptions[i] = _subscriptions[subscriptionIdWithIndex(i)];           
         }
     }
 
@@ -142,7 +165,7 @@ contract SingleNFTStakingFactory is Ownable {
 
 	function deleteApr(uint256 _value) external onlyOwner {		
         _aprs.remove(_value);
-        emit SubscriptionDeleted(_subscriptionsId);
+        emit SubscriptionDeleted(_subscriptionId);
     }
 
 	function aprCount() view public returns(uint256) {
@@ -154,18 +177,54 @@ contract SingleNFTStakingFactory is Ownable {
     }
 
 
-	function createSingleNFTStaking(string memory _name, string memory _uri, uint256 royalties, bool bPublic) external returns(address collection) {
-		if(bPublic){
-			require(owner() == msg.sender, "Only owner can create public collection");	
-		}		
-		bytes memory bytecode = type(MultipleNFT).creationCode;
+	function createSingleNFTStaking(
+		uint256 _subscriptionId, 
+		uint256 _aprIndex, 
+		address _stakeNftAddress, 
+		address _rewardTokenAddress, 
+		uint256 _stakeNftPrice, 
+		uint256 _maxStakedNfts,
+		uint256 _maxNftsPerUser) external payable returns(address staking) {
+
+		require(_subscriptions[_subscriptionId].bValid, "not exist");
+
+		Subscription _subscription = _subscriptions[_subscriptionId];
+		uint256 _apr = _aprs.at(_aprIndex);
+		require(msg.value >= _subscription.price, "insufficient fee");
+				
+		bytes memory bytecode = type(SingleNFTStaking).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(_uri, _name, block.timestamp));
         assembly {
-            collection := create2(0, add(bytecode, 32), mload(bytecode), salt)
+            staking := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        INFTCollection(collection).initialize(_name, _uri, msg.sender, royalties, bPublic);
-		collections.push(collection);
-		emit MultiCollectionCreated(collection, msg.sender, _name, _uri, royalties, bPublic);
+        ISingleNFTStaking(staking).initialize(
+			_stakeNftAddress, 
+			_rewardTokenAddress,
+			_stakeNftPrice,
+			_apr,
+			msg.sender,
+			_maxStakedNfts,
+			_maxNftsPerUser,
+			depositFeePerNft,
+			withdrawFeePerNft,
+			block.timestamp,
+			block.timestamp.add(_subscription.period));
+			
+		stakings.push(staking);
+
+		emit SingleNFTStakingCreated(
+			staking,
+			_stakeNftAddress, 
+			_rewardTokenAddress,
+			_stakeNftPrice,
+			_apr,
+			_creatorAddress,
+			_maxStakedNfts,
+			_maxNftsPerUser,
+			_depositFeePerNft,
+			_withdrawFeePerNft,
+			_startTime,
+			_endTime);
 	}
 
 	function withdrawBNB() external onlyOwner {
