@@ -29,9 +29,8 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
     }
 
     function viewUserInfo(address account_)
-        public
+        external
         view
-        override
         returns (
             uint256[] memory stakedNfts,
             uint256[] memory stakedNftAmounts,
