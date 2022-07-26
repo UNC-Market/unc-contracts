@@ -163,7 +163,7 @@ contract NFTStakingFactory is Ownable {
 		return _subscriptions[_subscriptionId];
 	}
 
-	function allSubscriptions() view public returns(Subscription[] memory scriptions) {
+	function allSubscriptions() view external returns(Subscription[] memory scriptions) {
         uint256 scriptionCount = subscriptionCount();
         scriptions = new Subscription[](scriptionCount);        
 
@@ -187,11 +187,11 @@ contract NFTStakingFactory is Ownable {
         emit SubscriptionDeleted(_value);
     }
 
-	function aprCount() view public returns(uint256) {
+	function aprCount() view external returns(uint256) {
         return _aprs.length();
     }
 
-    function aprWithIndex(uint256 index) view public returns(uint256) {
+    function aprWithIndex(uint256 index) view external returns(uint256) {
         return _aprs.at(index);
     }
 
