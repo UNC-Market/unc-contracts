@@ -58,9 +58,27 @@ contract NFTStaking is ReentrancyGuard, Pausable {
     event DepositFeePerNftUpdated(uint256 newValue);
     event WithdrawFeePerNftUpdated(uint256 newValue);
 
+    event Staked(address indexed account, uint256 tokenId, uint256 amount);
+    event Withdrawn(address indexed account, uint256 tokenId, uint256 amount);
+    event Harvested(address indexed account, uint256 amount);
+
 
     constructor() {
         factory = msg.sender;
+    }
+
+    function viewUserInfo(address account_) public view returns (
+        uint256[] memory stakedNfts,
+        uint256[] memory stakedNftAmounts,
+        uint256 totalstakedNftCount,
+        uint256 rewards,
+        uint256 lastRewardTimestamp
+    ) {
+        stakedNfts = new uint256[](0);
+        stakedNftAmounts = new uint256[](0);
+        totalstakedNftCount = 0;
+        rewards = 0;
+        lastRewardTimestamp = block.timestamp;
     }
 
     function initialize(
