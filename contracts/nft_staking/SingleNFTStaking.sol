@@ -23,20 +23,19 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
 
     // Info of each user that stakes LP tokens.
     mapping(address => UserInfo) private _userInfo;
-
-    event Staked(address indexed account, uint256 tokenId);
-    event Withdrawn(address indexed account, uint256 tokenId);
-    event Harvested(address indexed account, uint256 amount);
+    
 
     constructor() {        
     }
 
     function viewUserInfo(address account_)
-        external
+        public
         view
+        override
         returns (
             uint256[] memory stakedNfts,
-            uint256 stakedNftCount,
+            uint256[] memory stakedNftAmounts,
+            uint256 totalstakedNftCount,
             uint256 rewards,
             uint256 lastRewardTimestamp
         )
@@ -44,15 +43,18 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
         UserInfo storage user = _userInfo[account_];
         rewards = user.rewards;
         lastRewardTimestamp = user.lastRewardTimestamp;
-        stakedNftCount = user.stakedNfts.length();
-        if (stakedNftCount == 0) {
+        totalstakedNftCount = user.stakedNfts.length();
+        if (totalstakedNftCount == 0) {
             // Return an empty array
             stakedNfts = new uint256[](0);
+            stakedNftAmounts = new uint256[](0);
         } else {
-            stakedNfts = new uint256[](stakedNftCount);
+            stakedNfts = new uint256[](totalstakedNftCount);
+            stakedNftAmounts = new uint256[](totalstakedNftCount);
             uint256 index;
-            for (index = 0; index < stakedNftCount; index++) {
+            for (index = 0; index < totalstakedNftCount; index++) {
                 stakedNfts[index] = user.stakedNfts.at(index);
+                stakedNftAmounts[index] = 1;
             }
         }
     }
@@ -158,7 +160,7 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
             );
 
             user.stakedNfts.add(tokenIdList_[i]);
-            emit Staked(_msgSender(), tokenIdList_[i]);
+            emit Staked(_msgSender(), tokenIdList_[i], 1);
         }
         _totalStakedNfts = _totalStakedNfts.add(countToStake);
         user.lastRewardTimestamp = block.timestamp;
@@ -217,7 +219,7 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
 
             user.stakedNfts.remove(tokenIdList_[i]);
 
-            emit Withdrawn(_msgSender(), tokenIdList_[i]);
+            emit Withdrawn(_msgSender(), tokenIdList_[i], 1);
         }
         user.lastRewardTimestamp = block.timestamp;
     }
