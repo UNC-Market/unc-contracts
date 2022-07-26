@@ -31,9 +31,8 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
     constructor() {}
 
     function viewUserInfo(address account_)
-        public
+        external
         view
-        override
         returns (
             uint256[] memory stakedNfts,
             uint256[] memory stakedNftAmounts,
