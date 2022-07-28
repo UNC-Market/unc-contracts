@@ -4,7 +4,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-// import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
@@ -147,10 +146,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             ),
             "Not approve nft to staker address"
         );
-        require(
-            tokenIdList_.length == amountList_.length,
-            "Invalid Token ids"
-        );
+        require(tokenIdList_.length == amountList_.length, "Invalid Token ids");
 
         uint256 countToStake = tokenIdList_.length;
         uint256 amountToStake = 0;
@@ -191,9 +187,9 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             uint256 adminFeePercent = INFTStakingFactory(factory)
                 .getAdminFeePercent();
             uint256 creatorFeePercent = PERCENTS_DIVIDER.sub(adminFeePercent);
-            address factoryOwner = INFTStakingFactory(factory).owner();
+            address adminFeeAddress = INFTStakingFactory(factory).getAdminFeeAddress();
 
-            payable(factoryOwner).transfer(
+            payable(adminFeeAddress).transfer(
                 msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
             );
             payable(_creatorAddress).transfer(
@@ -212,7 +208,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             if (!isStaked(_msgSender(), tokenIdList_[i])) {
                 user.stakedNfts.add(tokenIdList_[i]);
             }
-            
+
             bytes32 key = nftKeyOfUser(_msgSender(), tokenIdList_[i]);
             _nftAmounts[key] = _nftAmounts[key] + amountList_[i];
 
@@ -226,15 +222,11 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
     /**
      * @dev Withdraw nft token ids
      */
-    function withdraw(uint256[] memory tokenIdList_, uint256[] memory amountList_)
-        external
-        payable
-        nonReentrant
-    {
-        require(
-            tokenIdList_.length == amountList_.length,
-            "Invalid Token ids"
-        );
+    function withdraw(
+        uint256[] memory tokenIdList_,
+        uint256[] memory amountList_
+    ) external payable nonReentrant {
+        require(tokenIdList_.length == amountList_.length, "Invalid Token ids");
 
         UserInfo storage user = _userInfo[_msgSender()];
         uint256 pendingAmount = pendingRewards(_msgSender());
@@ -263,9 +255,9 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             uint256 adminFeePercent = INFTStakingFactory(factory)
                 .getAdminFeePercent();
             uint256 creatorFeePercent = PERCENTS_DIVIDER.sub(adminFeePercent);
-            address factoryOwner = INFTStakingFactory(factory).owner();
+            address adminFeeAddress = INFTStakingFactory(factory).getAdminFeeAddress();
 
-            payable(factoryOwner).transfer(
+            payable(adminFeeAddress).transfer(
                 msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
             );
             payable(_creatorAddress).transfer(
@@ -294,7 +286,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             if (nftAmounts == amountList_[i]) {
                 user.stakedNfts.remove(tokenIdList_[i]);
             }
-            _nftAmounts[key] = nftAmounts - amountList_[i];           
+            _nftAmounts[key] = nftAmounts - amountList_[i];
 
             emit Withdrawn(_msgSender(), tokenIdList_[i], amountList_[i]);
         }
