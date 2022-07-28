@@ -23,10 +23,8 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
 
     // Info of each user that stakes LP tokens.
     mapping(address => UserInfo) private _userInfo;
-    
 
-    constructor() {        
-    }
+    constructor() {}
 
     function viewUserInfo(address account_)
         external
@@ -223,7 +221,6 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
         user.lastRewardTimestamp = block.timestamp;
     }
 
-    
     function onERC721Received(
         address,
         address,
