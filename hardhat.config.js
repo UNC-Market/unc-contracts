@@ -5,19 +5,19 @@ require('@openzeppelin/hardhat-upgrades');
 
 module.exports = {
   networks: {
-    ropsten: {
-      url: process.env.ROPSTEN_NODE_URL,
-      accounts: [process.env.ROPSTEN_PRIVATE_KEY]
+    bsc: {
+      url: process.env.BSC_NODE_URL,
+      accounts: [process.env.PRIVATE_KEY]
     },
     rinkeby: {
       url: process.env.RINKEBY_NODE_URL,
-      accounts: [process.env.RINKEBY_PRIVATE_KEY]
+      accounts: [process.env.PRIVATE_KEY]
     }
   },
   solidity: {
     compilers: [
       {
-        version: '0.8.4',
+        version: '0.8.2',
         settings: {
           optimizer: {
             enabled: true,
@@ -28,6 +28,6 @@ module.exports = {
     ]
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: process.env.API_KEY
   }
 }
