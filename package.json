@@ -1,18 +1,38 @@
 {
-  "name": "GNUS",
+  "name": "unc-contracts",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "",
+  "main": "hardhat.config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "npm run clean && hardhat test",
+    "build": "npm run clean && hardhat compile --network rinkeby",
+    "deploy-nftcollection": "hardhat run scripts/deploy-nftcollection.js --network rinkeby",
+    "deploy-marketplace": "hardhat run scripts/deploy-marketplace.js --network rinkeby",
+    "deploy-staking": "hardhat run scripts/deploy-staking.js --network rinkeby",
+    "lint": "prettier-standard --format",
+    "clean": "rimraf cache artifacts"
+  },
+  "author": "",
   "license": "MIT",
+  "devDependencies": {
+    "@eth-optimism/plugins": "0.0.4",
+    "@nomiclabs/hardhat-ethers": "^2.0.1",
+    "@nomiclabs/hardhat-etherscan": "^2.1.1",
+    "@openzeppelin/hardhat-upgrades": "^1.7.0",
+    "dotenv": "8.2.0",
+    "ethers": "^5.1.4",
+    "hardhat": "^2.2.1",
+    "prettier-standard": "16.4.1",
+    "rimraf": "3.0.2"
+  },
   "dependencies": {
     "@openzeppelin/contracts": "^4.1.0",
-    "dotenv": "^9.0.2",
-    "truffle": "^5.3.7",
-    "truffle-flattener": "^1.5.0",
-    "truffle-hdwallet-provider": "^1.0.17"
-  },
-  "devDependencies": {
     "@openzeppelin/contracts-ethereum-package": "^3.0.0",
     "@openzeppelin/contracts-upgradeable": "^4.1.0",
-    "truffle-plugin-verify": "^0.5.8"
+    "chai": "^4.3.0",
+    "web3": "^1.3.4"
   }
 }
