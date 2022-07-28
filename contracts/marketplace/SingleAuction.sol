@@ -5,9 +5,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/utils/ERC721HolderUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ISingleNFT {
@@ -16,13 +15,12 @@ interface ISingleNFT {
     function getOwner() external view returns (address);	   
 }
 
-contract SingleAuction is Ownable, ERC721Holder {
-    using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.AddressSet;
+contract SingleAuction is OwnableUpgradeable, ERC721HolderUpgradeable {
+    using SafeMath for uint256;    
 
     uint256 constant public PERCENTS_DIVIDER = 1000;
     uint256 constant public MIN_BID_INCREMENT_PERCENT = 10; // 1%
-	uint256 public swapFee = 25;	// 2.5%
+	uint256 public swapFee;	// 25 for 2.5%
 	address public feeAddress;    	
     
     // AuctionBid struct to hold bidder and amount
@@ -64,9 +62,14 @@ contract SingleAuction is Ownable, ERC721Holder {
     // AuctionFinalized is fired when an auction is finalized
     event AuctionFinalized(address buyer, uint256 price, Auction auction);
 
-    constructor (address _feeAddress) {		
-		feeAddress = _feeAddress;
-	}   
+    function initialize(
+        address _feeAddress
+    ) public initializer {
+        __Ownable_init();
+        require(_feeAddress != address(0), "Invalid commonOwner");
+        feeAddress = _feeAddress;
+        swapFee = 25;
+    }	
     
     function setFeeAddress(address _feeAddress) external onlyOwner {
         require(_feeAddress != address(0x0), "invalid address");		

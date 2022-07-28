@@ -3,9 +3,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/utils/ERC721HolderUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ISingleNFT {
@@ -15,13 +14,12 @@ interface ISingleNFT {
     function getOwner() external view returns (address); 
 }
 
-contract SingleFixed is Ownable, ERC721Holder {
+contract SingleFixed is OwnableUpgradeable, ERC721HolderUpgradeable {
     using SafeMath for uint256;
-	using EnumerableSet for EnumerableSet.AddressSet;
 
 	uint256 constant public PERCENTS_DIVIDER = 1000;
 
-	uint256 public swapFee = 25; // 2.5%	
+	uint256 public swapFee; // 25 for 2.5%	
 	address public feeAddress; 
 	
     /* Pairs to swap NFT _id => price */
@@ -37,16 +35,22 @@ contract SingleFixed is Ownable, ERC721Holder {
 
 	// token id => Pair mapping
     mapping(uint256 => Pair) public pairs;
-	uint256 public currentPairId = 1;    
+	uint256 public currentPairId;
 	
 	/** Events */
     event SingleItemListed(Pair pair);
 	event SingleItemDelisted(address collection, uint256 tokenId, uint256 pairId);
     event SingleSwapped(address buyer, Pair pair);
 
-	constructor (address _feeAddress) {	
-		feeAddress = _feeAddress;
-	}
+	function initialize(
+        address _feeAddress
+    ) public initializer {
+        __Ownable_init();
+        require(_feeAddress != address(0), "Invalid commonOwner");
+        feeAddress = _feeAddress;
+        swapFee = 25;
+        currentPairId = 1;
+    }	
 	
 	function setFeePercent(uint256 _swapFee) external onlyOwner {		
 		require(_swapFee < 1000 , "invalid percent");

@@ -17,7 +17,7 @@ contract MultipleFixed is OwnableUpgradeable, ERC1155HolderUpgradeable {
     using SafeMath for uint256;
 	
 	uint256 constant public PERCENTS_DIVIDER = 1000;
-	uint256 public swapFee = 25;	// 2.5 %
+	uint256 public swapFee;	// 25 for 2.5 %
 	address public feeAddress; 	
 
     /* Pairs to swap NFT _id => price */
@@ -33,7 +33,7 @@ contract MultipleFixed is OwnableUpgradeable, ERC1155HolderUpgradeable {
 	}
     
 	mapping(uint256 => Pair) public pairs;
-	uint256 public currentPairId = 0;
+	uint256 public currentPairId;
 
 	/** Events */
     event MultiItemListed(Pair item);
@@ -47,6 +47,8 @@ contract MultipleFixed is OwnableUpgradeable, ERC1155HolderUpgradeable {
         __Ownable_init();
         require(_feeAddress != address(0), "Invalid commonOwner");
         feeAddress = _feeAddress;
+		swapFee = 25;
+		currentPairId = 0;
     }		
 
 	function setFeePercent(uint256 _swapFee) external onlyOwner {		
