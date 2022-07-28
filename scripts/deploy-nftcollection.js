@@ -12,100 +12,76 @@ async function main() {
   const signer = (await ethers.getSigners())[0]
   console.log('signer:', await signer.getAddress())
 
-  const deployFlag = {
-    verifyFactory: false,
-    verifyMerchant: false,
-    deployMerchantTemplate: false,
-    cloneMerchant: true,
-    deployFactory: false,
-    upgradeFactory: false,
-  };
-
   /**
-   * Verify Merchant
+   * Deploy SingleNFT Template
    */
-  if (deployFlag.verifyMerchant) {
-    const merchantAddress = '0x8c878d705de10B7a31C82922aFD870BC4f7d2b66';
+  const SingleNFT = await ethers.getContractFactory('SingleNFT', { signer: (await ethers.getSigners())[0] })
 
+  const singleNFTContract = await SingleNFT.deploy();
+  await singleNFTContract.deployed();
+  await sleep(30);
+  console.log("SingleNFT template deployed to: ", singleNFTContract.address);
+
+  // Verify SingleNFT Template
+  try {
     await hre.run('verify:verify', {
-      address: merchantAddress,
+      address: singleNFTContract.address,
       constructorArguments: []
     })
-
-    console.log("Merchant at: ", merchantAddress, " verified");
+    console.log('SingleNFT verified')
+  } catch (error) {
+    console.log('SingleNFT verification failed : ', error)
   }
 
   /**
-   * Verify SlashFactory
+   * Deploy MultipleNFT Template
    */
-  if (deployFlag.verifyFactory) {
-    const implementationAddress = '0x0d4c9de53ec60fa97328bc1de94814975ea3b03f' // SlashFactory implementation contract address
+  const MultipleNFT = await ethers.getContractFactory('MultipleNFT', { signer: (await ethers.getSigners())[0] })
+
+  const multipleNFTContract = await MultipleNFT.deploy();
+  await multipleNFTContract.deployed();
+  await sleep(30);
+  console.log("MultipleNFT template deployed to: ", multipleNFTContract.address);
+
+  // Verify MultipleNFT Template
+  try {
     await hre.run('verify:verify', {
-      address: implementationAddress,
+      address: multipleNFTContract.address,
       constructorArguments: []
     })
-    console.log('SlashFactory Implementation contract verified')
+    console.log('MultipleNFT verified')
+  } catch (error) {
+    console.log('MultipleNFT verification failed : ', error)
   }
 
   /**
-   * Deploy Merchant Template
-   */
-  if (deployFlag.deployMerchantTemplate) {
-    const Merchant = await ethers.getContractFactory('Merchant', { signer: (await ethers.getSigners())[0] })
-
-    const merchantContract = await Merchant.deploy();
-    await merchantContract.deployed();
-    await sleep(30);
-    console.log("Merchant template deployed to: ", merchantContract.address);
-  }
-
-  /**
-   *  Deploy SlashFactory
-   */
-  if (deployFlag.deployFactory) {
-    const commonOwner = '0x172A25d57dA59AB86792FB8cED103ad871CBEf34';
-    const merchantTemplate = '0x8c878d705de10B7a31C82922aFD870BC4f7d2b66';
-    const defaultController = '0x8c4ac09b2Fd85d8Dff274a26D9b8ece2D84210d8';
-
-    const SlashFactory = await ethers.getContractFactory('SlashFactory', {
+  *  Deploy and Verify NFTFactory
+  */
+  {
+    const NFTFactory = await ethers.getContractFactory('NFTFactory', {
       signer: (await ethers.getSigners())[0]
     });
-    const factoryContract = await upgrades.deployProxy(SlashFactory, [commonOwner, merchantTemplate, defaultController], { initializer: 'initialize' });
-    await factoryContract.deployed()
+    const nftFactoryContract = await upgrades.deployProxy(NFTFactory, [singleNFTContract.address,multipleNFTContract.address], { initializer: 'initialize' });
+    await nftFactoryContract.deployed()
 
-    console.log('SlashFactory proxy deployed: ', factoryContract.address)
+    console.log('NFTFactory proxy deployed: ', nftFactoryContract.address)
+
+    nftFactoryImplementation = await upgrades.erc1967.getImplementationAddress(nftFactoryContract.address);
+    console.log('NFTFactory Implementation address: ', nftFactoryImplementation)
+
+    await sleep(60);
+    // Verify NFTFactory
+    try {
+      await hre.run('verify:verify', {
+        address: nftFactoryImplementation,
+        constructorArguments: []
+      })
+      console.log('NFTFactory verified')
+    } catch (error) {
+      console.log('NFTFactory verification failed : ', error)
+    }
   }
 
-  /**
-   * Upgrade SlashFactory
-   */
-  if (deployFlag.upgradeFactory) {
-    const factoryAddress = "0x052314b94D8609F1F60674e239E783d0B2bFD0dC";
-
-    const SlashFactoryV2 = await ethers.getContractFactory('SlashFactory', {
-      signer: (await ethers.getSigners())[0]
-    })
-
-    const upgradedFactoryContract = await upgrades.upgradeProxy(factoryAddress, SlashFactoryV2);
-    console.log('SlashFactory upgraded: ', upgradedFactoryContract.address)
-  }
-
-  /**
-   * Clone Merchant from SlashFactory
-   */
-  if (deployFlag.cloneMerchant) {
-    const factoryAddress = '0x052314b94D8609F1F60674e239E783d0B2bFD0dC';
-    const merchantWallet = '0x7861e0f3b46e7C4Eac4c2fA3c603570d58bd1d97';
-    const receiveToken = '0x0000000000000000000000000000000000000000';
-    const reserved = [];
-
-    const SlashFactory = await ethers.getContractFactory('SlashFactory', { signer: (await ethers.getSigners())[0] });
-    const slashFactory = await SlashFactory.attach(factoryAddress);
-
-    const tx = await slashFactory.deployMerchant(merchantWallet, receiveToken, reserved);
-    await tx.wait();
-    console.log('Merchant Cloned');
-  }
 }
 
 main()
