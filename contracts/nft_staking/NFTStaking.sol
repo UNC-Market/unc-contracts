@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 interface INFTStakingFactory {
     function owner() external view returns (address);
     function getAdminFeePercent() external view returns (uint256);
+    function getAdminFeeAddress() external view returns (address);
 }
 
 contract NFTStaking is ReentrancyGuard, Pausable {
@@ -62,9 +63,23 @@ contract NFTStaking is ReentrancyGuard, Pausable {
     event Withdrawn(address indexed account, uint256 tokenId, uint256 amount);
     event Harvested(address indexed account, uint256 amount);
 
-
     constructor() {
         factory = msg.sender;
+    }
+
+    function getDepositTokenAmount(
+        uint256 stakeNftPrice_,
+        uint256 maxStakedNfts_,
+        uint256 apr_,
+        uint256 period_
+    ) internal pure returns (uint256) {
+        uint256 depositTokenAmount = stakeNftPrice_
+            .mul(maxStakedNfts_)
+            .mul(apr_)
+            .mul(period_)
+            .div(YEAR_TIMESTAMP)
+            .div(PERCENTS_DIVIDER);
+        return depositTokenAmount;
     }
 
     function initialize(
@@ -98,13 +113,13 @@ contract NFTStaking is ReentrancyGuard, Pausable {
             .div(YEAR_TIMESTAMP);
     }
 
-    
     /**
      * @dev Update start block timestamp
      * Only factory owner has privilege to call this function
      */
     function updateStartTimestamp(uint256 startTimestamp_)
         external
+        payable
         onlyFactoryOwner
     {
         require(
@@ -116,6 +131,56 @@ contract NFTStaking is ReentrancyGuard, Pausable {
             "Start block must be after current block"
         );
         require(_startTime > block.timestamp, "Staking started already");
+        require(_startTime != startTimestamp_, "same timestamp");
+
+        uint256 prevPeriod = _endTime.sub(_startTime);
+        uint256 newPeriod = _endTime.sub(startTimestamp_);
+        uint256 prevTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, prevPeriod);
+        uint256 newTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, newPeriod);        
+        
+        if (newTokenAmount > prevTokenAmount) {
+            // deposit token
+            uint256 depositTokenAmount = newTokenAmount.sub(prevTokenAmount);
+            if (_rewardTokenAddress == address(0x0)) {
+                require(
+                    msg.value >= depositTokenAmount,
+                    "insufficient balance"
+                );
+            } else {
+                IERC20 governanceToken = IERC20(_rewardTokenAddress);
+                require(
+                    governanceToken.transferFrom(
+                        msg.sender,
+                        address(this),
+                        depositTokenAmount
+                    ),
+                    "insufficient token balance"
+                );
+            }
+        } else {
+            // withdraw tokens to creator address
+            uint256 withdrawTokenAmount = prevTokenAmount.sub(newTokenAmount);
+            if (_rewardTokenAddress == address(0x0)) {
+                uint256 balance = address(this).balance;
+                if (withdrawTokenAmount > balance) {
+                    payable(_creatorAddress).transfer(balance);
+                } else {
+                    payable(_creatorAddress).transfer(withdrawTokenAmount);
+                }
+            } else {
+                IERC20 governanceToken = IERC20(_rewardTokenAddress);
+                uint256 tokenBalance = governanceToken.balanceOf(address(this));
+                if (withdrawTokenAmount > tokenBalance) {
+                    governanceToken.safeTransfer(_creatorAddress, tokenBalance);
+                } else {
+                    governanceToken.safeTransfer(
+                        _creatorAddress,
+                        withdrawTokenAmount
+                    );
+                }
+            }
+        }
+
         _startTime = startTimestamp_;
         emit StartTimeUpdated(startTimestamp_);
     }
@@ -126,6 +191,7 @@ contract NFTStaking is ReentrancyGuard, Pausable {
      */
     function updateEndTimestamp(uint256 endTimestamp_)
         external
+        payable
         onlyFactoryOwner
     {
         require(
@@ -136,6 +202,54 @@ contract NFTStaking is ReentrancyGuard, Pausable {
             endTimestamp_ > block.timestamp,
             "End block must be after current block"
         );
+        require(endTimestamp_ != _endTime, "same timestamp");
+
+        if (endTimestamp_ > _endTime) {
+            // deposit token
+            uint256 period = endTimestamp_.sub(_endTime);
+            uint256 depositTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, period);
+            if (_rewardTokenAddress == address(0x0)) {
+                require(
+                    msg.value >= depositTokenAmount,
+                    "insufficient balance"
+                );
+            } else {
+                IERC20 governanceToken = IERC20(_rewardTokenAddress);
+                require(
+                    governanceToken.transferFrom(
+                        msg.sender,
+                        address(this),
+                        depositTokenAmount
+                    ),
+                    "insufficient token balance"
+                );
+            }
+        } else {
+            // withdraw tokens to creator address
+            uint256 period = _endTime.sub(endTimestamp_);
+            uint256 withdrawTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, period);
+            
+            if (_rewardTokenAddress == address(0x0)) {
+                uint256 balance = address(this).balance;
+                if (withdrawTokenAmount > balance) {
+                    payable(_creatorAddress).transfer(balance);
+                } else {
+                    payable(_creatorAddress).transfer(withdrawTokenAmount);
+                }
+            } else {
+                IERC20 governanceToken = IERC20(_rewardTokenAddress);
+                uint256 tokenBalance = governanceToken.balanceOf(address(this));
+                if (withdrawTokenAmount > tokenBalance) {
+                    governanceToken.safeTransfer(_creatorAddress, tokenBalance);
+                } else {
+                    governanceToken.safeTransfer(
+                        _creatorAddress,
+                        withdrawTokenAmount
+                    );
+                }
+            }
+        }
+
         _endTime = endTimestamp_;
         emit EndTimeUpdated(endTimestamp_);
     }
@@ -155,12 +269,8 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         );
         require(_startTime > block.timestamp, "Staking started already");
         uint256 period = _endTime.sub(_startTime);
-        uint256 prepareTokenAmount = _stakeNftPrice
-            .mul(_maxStakedNfts)
-            .mul(_apr)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
+        uint256 prepareTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, period);
+        
 
         // withdraw previous tokens to creator address
         if (_rewardTokenAddress == address(0x0)) {
@@ -214,18 +324,8 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         require(_startTime > block.timestamp, "Staking started already");
 
         uint256 period = _endTime.sub(_startTime);
-        uint256 prevTokenAmount = _stakeNftPrice
-            .mul(_maxStakedNfts)
-            .mul(_apr)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
-        uint256 newTokenAmount = stakeNftPrice_
-            .mul(_maxStakedNfts)
-            .mul(_apr)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
+        uint256 prevTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, period);
+        uint256 newTokenAmount = getDepositTokenAmount(stakeNftPrice_, _maxStakedNfts, _apr, period);        
 
         if (newTokenAmount > prevTokenAmount) {
             // deposit token
@@ -282,27 +382,13 @@ contract NFTStaking is ReentrancyGuard, Pausable {
      * @dev Update apr value
      * Only factory owner has privilege to call this function
      */
-    function updateApr(uint256 apr_)
-        external
-        payable
-        onlyFactoryOwner
-    {
+    function updateApr(uint256 apr_) external payable onlyFactoryOwner {
         require(_apr != apr_, "same apr");
         require(_startTime > block.timestamp, "Staking started already");
 
         uint256 period = _endTime.sub(_startTime);
-        uint256 prevTokenAmount = _stakeNftPrice
-            .mul(_maxStakedNfts)
-            .mul(_apr)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
-        uint256 newTokenAmount = _stakeNftPrice
-            .mul(_maxStakedNfts)
-            .mul(apr_)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
+        uint256 prevTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, period);
+        uint256 newTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, apr_, period);        
 
         if (newTokenAmount > prevTokenAmount) {
             // deposit token
@@ -368,18 +454,8 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         require(_startTime > block.timestamp, "Staking started already");
 
         uint256 period = _endTime.sub(_startTime);
-        uint256 prevTokenAmount = _stakeNftPrice
-            .mul(_maxStakedNfts)
-            .mul(_apr)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
-        uint256 newTokenAmount = _stakeNftPrice
-            .mul(maxStakedNfts_)
-            .mul(_apr)
-            .mul(period)
-            .div(YEAR_TIMESTAMP)
-            .div(PERCENTS_DIVIDER);
+        uint256 prevTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, period);
+        uint256 newTokenAmount = getDepositTokenAmount(_stakeNftPrice, maxStakedNfts_, _apr, period);        
 
         if (newTokenAmount > prevTokenAmount) {
             // deposit token
@@ -440,8 +516,8 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         external
         payable
         onlyFactoryOwner
-    {           
-        _maxNftsPerUser = maxNftsPerUser_;        
+    {
+        _maxNftsPerUser = maxNftsPerUser_;
         emit MaxNftsPerUserUpdated(maxNftsPerUser_);
     }
 
@@ -453,8 +529,8 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         external
         payable
         onlyFactoryOwner
-    {           
-        _depositFeePerNft = depositFeePerNft_;        
+    {
+        _depositFeePerNft = depositFeePerNft_;
         emit DepositFeePerNftUpdated(depositFeePerNft_);
     }
 
@@ -466,11 +542,10 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         external
         payable
         onlyFactoryOwner
-    {           
-        _withdrawFeePerNft = withdrawFeePerNft_;        
+    {
+        _withdrawFeePerNft = withdrawFeePerNft_;
         emit WithdrawFeePerNftUpdated(withdrawFeePerNft_);
     }
-
 
     /**
      * @dev Safe transfer reward to the receiver
@@ -520,7 +595,6 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         }
     }
 
-    
     function withdrawBNB() external onlyFactoryOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "insufficient balance");
