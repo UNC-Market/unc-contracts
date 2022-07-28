@@ -3,11 +3,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 interface IMultipleNFT {
 	function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes calldata data) external;
 	function balanceOf(address account, uint256 id) external view returns (uint256);
@@ -15,10 +13,9 @@ interface IMultipleNFT {
     function getOwner() external view returns (address);	
 }
 
-contract MultipleFixed is Ownable, ERC1155Holder {
+contract MultipleFixed is OwnableUpgradeable, ERC1155HolderUpgradeable {
     using SafeMath for uint256;
-	using EnumerableSet for EnumerableSet.AddressSet;
-
+	
 	uint256 constant public PERCENTS_DIVIDER = 1000;
 	uint256 public swapFee = 25;	// 2.5 %
 	address public feeAddress; 	
@@ -43,9 +40,14 @@ contract MultipleFixed is Ownable, ERC1155Holder {
 	event MultiItemDelisted(address collection, uint256 tokenId, uint256 pairId);
     event MultiItemSwapped(address buyer, uint256 id, uint256 amount, Pair item);
 
-	constructor (address _feeAddress) {		
-		feeAddress = _feeAddress;		
-	}	
+
+	function initialize(
+        address _feeAddress
+    ) public initializer {
+        __Ownable_init();
+        require(_feeAddress != address(0), "Invalid commonOwner");
+        feeAddress = _feeAddress;
+    }		
 
 	function setFeePercent(uint256 _swapFee) external onlyOwner {		
 		require(_swapFee < 1000 , "invalid percent");
