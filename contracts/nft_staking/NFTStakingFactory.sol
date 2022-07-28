@@ -3,40 +3,34 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 
-import "./SingleNFTStaking.sol";
-import "./MultiNFTStaking.sol";
+import "./StructDeclaration.sol";
 
-interface INFTStaking {    
+interface INFTStaking {
     function initialize(
-        address stakeNftAddress_,
-        address rewardTokenAddress_,
-        uint256 stakeNftPrice_,
-        uint256 apr_,
-        address creatorAddress_,
-        uint256 maxStakedNfts_,
-        uint256 maxNftsPerUser_,
-        uint256 depositFeePerNft_,
-        uint256 withdrawFeePerNft_,
-        uint256 startTime_,
-        uint256 endTime_
+        InitializeParam memory param
     ) external;    
 }
 
-contract NFTStakingFactory is Ownable {
+contract NFTStakingFactory is OwnableUpgradeable {
     using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.UintSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
+
+    address private singleNFTStakingImplementation;
+	address private multipleNFTStakingImplementation;
 
     uint256 public constant PERCENTS_DIVIDER = 1000;
     uint256 public constant YEAR_TIMESTAMP = 31536000;
 
     address[] public stakings;
     address private adminFeeAddress;
-    uint256 private adminFeePercent = 100; // 10 %
-    uint256 private depositFeePerNft = 0 ether;
-    uint256 private withdrawFeePerNft = 0 ether;
+    uint256 private adminFeePercent; // 100 for 10 %
+    uint256 private depositFeePerNft;
+    uint256 private withdrawFeePerNft;
 
     struct Subscription {
         uint256 id;
@@ -46,11 +40,11 @@ contract NFTStakingFactory is Ownable {
         bool bValid;
     }
 
-    uint256 public currentSubscriptionsId = 0;
+    uint256 public currentSubscriptionsId;
     mapping(uint256 => Subscription) private _subscriptions;
-    EnumerableSet.UintSet private _subscriptionIndices;
+    EnumerableSetUpgradeable.UintSet private _subscriptionIndices;
 
-    EnumerableSet.UintSet private _aprs;
+    EnumerableSetUpgradeable.UintSet private _aprs;
 
     /** Events */
     event SubscriptionCreated(Subscription subscription);
@@ -62,37 +56,45 @@ contract NFTStakingFactory is Ownable {
 
     event SingleNFTStakingCreated(
         address _stake_address,
-        address _stakeNftAddress,
-        address _rewardTokenAddress,
-        uint256 _stakeNftPrice,
-        uint256 _apr,
-        address _creatorAddress,
-        uint256 _maxStakedNfts,
-        uint256 _maxNftsPerUser,
-        uint256 _depositFeePerNft,
-        uint256 _withdrawFeePerNft,
-        uint256 _startTime,
-        uint256 _endTime
+        InitializeParam _param
     );
 
     event MultiNFTStakingCreated(
         address _stake_address,
-        address _stakeNftAddress,
-        address _rewardTokenAddress,
-        uint256 _stakeNftPrice,
-        uint256 _apr,
-        address _creatorAddress,
-        uint256 _maxStakedNfts,
-        uint256 _maxNftsPerUser,
-        uint256 _depositFeePerNft,
-        uint256 _withdrawFeePerNft,
-        uint256 _startTime,
-        uint256 _endTime
+        InitializeParam _param
     );
 
-    constructor(address _adminFeeAddress) {
-        adminFeeAddress = _adminFeeAddress;
+    function initialize(
+		address _adminFeeAddress
+	) public initializer {
+        __Ownable_init();
+        adminFeeAddress = _adminFeeAddress;	
+        adminFeePercent = 100;
+        depositFeePerNft = 0 ether;
+        withdrawFeePerNft = 0 ether;
+        currentSubscriptionsId = 0;
     }
+
+    function updateSingleNFTStakingImplementation(address singleNFTStakingImplementation_)
+        external
+        onlyOwner
+    {
+        singleNFTStakingImplementation = singleNFTStakingImplementation_;
+    }
+    function viewSingleNFTStakingImplementation() external view returns (address) {
+        return singleNFTStakingImplementation;
+    }
+
+	function updateMultipleNFTStakingImplementation(address multipleNFTStakingImplementation_)
+        external
+        onlyOwner
+    {
+        multipleNFTStakingImplementation = multipleNFTStakingImplementation_;
+    }
+    function viewMultipleNFTStakingImplementation() external view returns (address) {
+        return multipleNFTStakingImplementation;
+    }
+
 
     function getAdminFeeAddress() external view returns (address) {
         return adminFeeAddress;
@@ -228,173 +230,155 @@ contract NFTStakingFactory is Ownable {
         return _aprs.at(index);
     }
 
+    function allAprs()
+        external
+        view
+        returns (uint256[] memory aprs_)
+    {
+        uint256 count = _aprs.length();
+        aprs_ = new uint256[](count);
+
+        for (uint256 i = 0; i < count; i++) {
+            aprs_[i] = _aprs.at(i);
+        }
+    }
+
     function createSingleNFTStaking(
         uint256 startTime,
-        uint256 _subscriptionId,
-        uint256 _aprIndex,
-        address _stakeNftAddress,
-        address _rewardTokenAddress,
-        uint256 _stakeNftPrice,
-        uint256 _maxStakedNfts,
-        uint256 _maxNftsPerUser
+        uint256 subscriptionId,
+        uint256 aprIndex,
+        address stakeNftAddress,
+        address rewardTokenAddress,
+        uint256 stakeNftPrice,
+        uint256 maxStakedNfts,
+        uint256 maxNftsPerUser
     ) external payable returns (address staking) {
-        require(_subscriptions[_subscriptionId].bValid, "not exist");
+        require(_subscriptions[subscriptionId].bValid, "not exist");
 
-        Subscription storage _subscription = _subscriptions[_subscriptionId];
-        uint256 _apr = _aprs.at(_aprIndex);
-        require(msg.value >= _subscription.price, "insufficient fee");
-        payable(adminFeeAddress).transfer(_subscription.price);
-
-        uint256 depositTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, _subscription.period);
-        if (_rewardTokenAddress == address(0x0)) {
-            require(
-                msg.value >= _subscription.price.add(depositTokenAmount),
-                "insufficient balance"
-            );
-        } else {
-            IERC20 governanceToken = IERC20(_rewardTokenAddress);
-            require(
-                governanceToken.transferFrom(
-                    msg.sender,
-                    address(this),
-                    depositTokenAmount
-                ),
-                "insufficient token balance"
-            );
-        }
-
-        bytes memory bytecode = type(SingleNFTStaking).creationCode;
-        bytes32 salt = keccak256(
-            abi.encodePacked(_stakeNftAddress, block.timestamp)
-        );
-        assembly {
-            staking := create2(0, add(bytecode, 32), mload(bytecode), salt)
-        }
+        Subscription storage _subscription = _subscriptions[subscriptionId];
+        uint256 _apr = _aprs.at(aprIndex);
         uint256 endTime = startTime.add(_subscription.period);
-        INFTStaking(staking).initialize(
-            _stakeNftAddress,
-            _rewardTokenAddress,
-            _stakeNftPrice,
-            _apr,
-            msg.sender,
-            _maxStakedNfts,
-            _maxNftsPerUser,
-            depositFeePerNft,
-            withdrawFeePerNft,
-            startTime,
-            endTime
-        );
-        stakings.push(staking);
 
-        if (_rewardTokenAddress == address(0x0)) {
-            payable(staking).transfer(depositTokenAmount);
-        } else {
-            IERC20 governanceToken = IERC20(_rewardTokenAddress);
-            require(
-                governanceToken.transfer(staking, depositTokenAmount),
-                "transfer token to contract failed"
-            );
+        {
+            require(msg.value >= _subscription.price, "insufficient fee");
+            payable(adminFeeAddress).transfer(_subscription.price);
         }
 
-        emit SingleNFTStakingCreated(
-            staking,
-            _stakeNftAddress,
-            _rewardTokenAddress,
-            _stakeNftPrice,
-            _apr,
-            msg.sender,
-            _maxStakedNfts,
-            _maxNftsPerUser,
-            depositFeePerNft,
-            withdrawFeePerNft,
-            startTime,
-            endTime
-        );
+        {
+            uint256 depositTokenAmount = getDepositTokenAmount(stakeNftPrice, maxStakedNfts, _apr, _subscription.period);
+            if (rewardTokenAddress == address(0x0)) {
+                require(
+                    msg.value >= _subscription.price.add(depositTokenAmount),
+                    "insufficient balance"
+                );
+                payable(staking).transfer(depositTokenAmount);
+            } else {
+                IERC20 governanceToken = IERC20(rewardTokenAddress);
+                require(
+                    governanceToken.transferFrom(
+                        msg.sender,
+                        address(this),
+                        depositTokenAmount
+                    ),
+                    "insufficient token balance"
+                );
+                governanceToken.transfer(staking, depositTokenAmount);
+            }
+        }
+
+        {
+            staking = ClonesUpgradeable.clone(singleNFTStakingImplementation);
+
+            InitializeParam memory _initializeParam;
+            _initializeParam.stakeNftAddress = stakeNftAddress; 
+            _initializeParam.rewardTokenAddress = rewardTokenAddress;
+            _initializeParam.stakeNftPrice = stakeNftPrice;
+            _initializeParam.apr = _apr;
+            _initializeParam.creatorAddress = msg.sender;
+            _initializeParam.maxStakedNfts = maxStakedNfts;
+            _initializeParam.maxNftsPerUser = maxNftsPerUser;
+            _initializeParam.depositFeePerNft = depositFeePerNft;
+            _initializeParam.withdrawFeePerNft = withdrawFeePerNft;
+            _initializeParam.startTime = startTime;
+            _initializeParam.endTime = endTime;            
+
+            INFTStaking(staking).initialize(_initializeParam);
+            stakings.push(staking);
+
+            emit SingleNFTStakingCreated(
+                staking,
+                _initializeParam
+            );
+        }
     }
 
     function createMultiNFTStaking(
         uint256 startTime,
-        uint256 _subscriptionId,
-        uint256 _aprIndex,
-        address _stakeNftAddress,
-        address _rewardTokenAddress,
-        uint256 _stakeNftPrice,
-        uint256 _maxStakedNfts,
-        uint256 _maxNftsPerUser
+        uint256 subscriptionId,
+        uint256 aprIndex,
+        address stakeNftAddress,
+        address rewardTokenAddress,
+        uint256 stakeNftPrice,
+        uint256 maxStakedNfts,
+        uint256 maxNftsPerUser
     ) external payable returns (address staking) {
-        require(_subscriptions[_subscriptionId].bValid, "not exist");
+        require(_subscriptions[subscriptionId].bValid, "not exist");
 
-        Subscription storage _subscription = _subscriptions[_subscriptionId];
-        uint256 _apr = _aprs.at(_aprIndex);
-        require(msg.value >= _subscription.price, "insufficient fee");
-
-        payable(adminFeeAddress).transfer(_subscription.price);
-
-        uint256 depositTokenAmount = getDepositTokenAmount(_stakeNftPrice, _maxStakedNfts, _apr, _subscription.period);
-        if (_rewardTokenAddress == address(0x0)) {
-            require(
-                msg.value >= _subscription.price.add(depositTokenAmount),
-                "insufficient balance"
-            );
-        } else {
-            IERC20 governanceToken = IERC20(_rewardTokenAddress);
-            require(
-                governanceToken.transferFrom(
-                    msg.sender,
-                    address(this),
-                    depositTokenAmount
-                ),
-                "insufficient token balance"
-            );
-        }
-
-        bytes memory bytecode = type(MultiNFTStaking).creationCode;
-        bytes32 salt = keccak256(
-            abi.encodePacked(_stakeNftAddress, block.timestamp)
-        );
-        assembly {
-            staking := create2(0, add(bytecode, 32), mload(bytecode), salt)
-        }
+        Subscription storage _subscription = _subscriptions[subscriptionId];
+        uint256 _apr = _aprs.at(aprIndex);
         uint256 endTime = startTime.add(_subscription.period);
-        INFTStaking(staking).initialize(
-            _stakeNftAddress,
-            _rewardTokenAddress,
-            _stakeNftPrice,
-            _apr,
-            msg.sender,
-            _maxStakedNfts,
-            _maxNftsPerUser,
-            depositFeePerNft,
-            withdrawFeePerNft,
-            startTime,
-            endTime
-        );
-        stakings.push(staking);
 
-        if (_rewardTokenAddress == address(0x0)) {
-            payable(staking).transfer(depositTokenAmount);
-        } else {
-            IERC20 governanceToken = IERC20(_rewardTokenAddress);
-            require(
-                governanceToken.transfer(staking, depositTokenAmount),
-                "transfer token to contract failed"
-            );
+        {
+            require(msg.value >= _subscription.price, "insufficient fee");
+            payable(adminFeeAddress).transfer(_subscription.price);
         }
 
-        emit MultiNFTStakingCreated(
-            staking,
-            _stakeNftAddress,
-            _rewardTokenAddress,
-            _stakeNftPrice,
-            _apr,
-            msg.sender,
-            _maxStakedNfts,
-            _maxNftsPerUser,
-            depositFeePerNft,
-            withdrawFeePerNft,
-            startTime,
-            endTime
-        );
+        {
+            uint256 depositTokenAmount = getDepositTokenAmount(stakeNftPrice, maxStakedNfts, _apr, _subscription.period);
+            if (rewardTokenAddress == address(0x0)) {
+                require(
+                    msg.value >= _subscription.price.add(depositTokenAmount),
+                    "insufficient balance"
+                );
+                payable(staking).transfer(depositTokenAmount);
+            } else {
+                IERC20 governanceToken = IERC20(rewardTokenAddress);
+                require(
+                    governanceToken.transferFrom(
+                        msg.sender,
+                        address(this),
+                        depositTokenAmount
+                    ),
+                    "insufficient token balance"
+                );
+                governanceToken.transfer(staking, depositTokenAmount);
+            }
+        }
+        
+        {
+            staking = ClonesUpgradeable.clone(multipleNFTStakingImplementation);        
+            
+            InitializeParam memory _initializeParam;
+            _initializeParam.stakeNftAddress = stakeNftAddress; 
+            _initializeParam.rewardTokenAddress = rewardTokenAddress;
+            _initializeParam.stakeNftPrice = stakeNftPrice;
+            _initializeParam.apr = _apr;
+            _initializeParam.creatorAddress = msg.sender;
+            _initializeParam.maxStakedNfts = maxStakedNfts;
+            _initializeParam.maxNftsPerUser = maxNftsPerUser;
+            _initializeParam.depositFeePerNft = depositFeePerNft;
+            _initializeParam.withdrawFeePerNft = withdrawFeePerNft;
+            _initializeParam.startTime = startTime;
+            _initializeParam.endTime = endTime;            
+            
+            INFTStaking(staking).initialize(_initializeParam);
+            stakings.push(staking);        
+
+            emit MultiNFTStakingCreated(
+                staking,
+                _initializeParam
+            );
+        }
     }
 
     function getDepositTokenAmount(

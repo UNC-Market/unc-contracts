@@ -1,30 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 
 import "./NFTStaking.sol";
 
-contract SingleNFTStaking is NFTStaking, IERC721Receiver {
+contract SingleNFTStaking is NFTStaking, IERC721ReceiverUpgradeable {
     using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.UintSet;
-    using SafeERC20 for IERC20;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;    
 
     struct UserInfo {
-        EnumerableSet.UintSet stakedNfts;
+        EnumerableSetUpgradeable.UintSet stakedNfts;
         uint256 rewards;
         uint256 lastRewardTimestamp;
     }
 
     // Info of each user that stakes LP tokens.
     mapping(address => UserInfo) private _userInfo;
-
-    constructor() {}
 
     function viewUserInfo(address account_)
         external
@@ -74,12 +68,12 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
     function pendingRewards(address account_) public view returns (uint256) {
         UserInfo storage user = _userInfo[account_];
 
-        uint256 fromTimestamp = user.lastRewardTimestamp < _startTime
-            ? _startTime
+        uint256 fromTimestamp = user.lastRewardTimestamp < stakingParams.startTime
+            ? stakingParams.startTime
             : user.lastRewardTimestamp;
-        uint256 toTimestamp = block.timestamp < _endTime
+        uint256 toTimestamp = block.timestamp < stakingParams.endTime
             ? block.timestamp
-            : _endTime;
+            : stakingParams.endTime;
         if (toTimestamp < fromTimestamp) {
             return user.rewards;
         }
@@ -103,7 +97,7 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
         whenNotPaused
     {
         require(
-            IERC721(_stakeNftAddress).isApprovedForAll(
+            IERC721Upgradeable(stakingParams.stakeNftAddress).isApprovedForAll(
                 _msgSender(),
                 address(this)
             ),
@@ -113,11 +107,11 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
         UserInfo storage user = _userInfo[_msgSender()];
         uint256 stakedNftCount = user.stakedNfts.length();
         require(
-            stakedNftCount.add(countToStake) <= _maxNftsPerUser,
+            stakedNftCount.add(countToStake) <= stakingParams.maxNftsPerUser,
             "Exceeds the max limit per user"
         );
         require(
-            _totalStakedNfts.add(countToStake) <= _maxStakedNfts,
+            _totalStakedNfts.add(countToStake) <= stakingParams.maxStakedNfts,
             "Exceeds the max limit"
         );
 
@@ -131,9 +125,9 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
             emit Harvested(_msgSender(), amountSent);
         }
 
-        if (countToStake > 0 && _depositFeePerNft > 0) {
+        if (countToStake > 0 && stakingParams.depositFeePerNft > 0) {
             require(
-                msg.value >= countToStake.mul(_depositFeePerNft),
+                msg.value >= countToStake.mul(stakingParams.depositFeePerNft),
                 "Insufficient deposit fee"
             );
             uint256 adminFeePercent = INFTStakingFactory(factory)
@@ -144,13 +138,13 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
             payable(factoryOwner).transfer(
                 msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
             );
-            payable(_creatorAddress).transfer(
+            payable(stakingParams.creatorAddress).transfer(
                 msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)
             );
         }
 
         for (uint256 i = 0; i < countToStake; i++) {
-            IERC721(_stakeNftAddress).safeTransferFrom(
+            IERC721Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
                 _msgSender(),
                 address(this),
                 tokenIdList_[i]
@@ -184,9 +178,9 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
 
         uint256 countToWithdraw = tokenIdList_.length;
 
-        if (countToWithdraw > 0 && _withdrawFeePerNft > 0) {
+        if (countToWithdraw > 0 && stakingParams.withdrawFeePerNft > 0) {
             require(
-                msg.value >= countToWithdraw.mul(_withdrawFeePerNft),
+                msg.value >= countToWithdraw.mul(stakingParams.withdrawFeePerNft),
                 "Insufficient withdraw fee"
             );
             uint256 adminFeePercent = INFTStakingFactory(factory)
@@ -197,7 +191,7 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
             payable(factoryOwner).transfer(
                 msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
             );
-            payable(_creatorAddress).transfer(
+            payable(stakingParams.creatorAddress).transfer(
                 msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)
             );
         }
@@ -208,7 +202,7 @@ contract SingleNFTStaking is NFTStaking, IERC721Receiver {
                 "Not staked this nft"
             );
 
-            IERC721(_stakeNftAddress).safeTransferFrom(
+            IERC721Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
                 address(this),
                 _msgSender(),
                 tokenIdList_[i]

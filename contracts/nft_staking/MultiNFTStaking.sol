@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 
 import "./NFTStaking.sol";
 
-contract MultiNFTStaking is NFTStaking, ERC1155Holder {
+contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
     using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.UintSet;
-    using SafeERC20 for IERC20;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;    
 
     struct UserInfo {
-        EnumerableSet.UintSet stakedNfts; // staked nft tokenid array
+        EnumerableSetUpgradeable.UintSet stakedNfts; // staked nft tokenid array
         uint256 rewards;
         uint256 lastRewardTimestamp;
     }
@@ -26,8 +22,6 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
 
     // nft amount of each (user, tokenId).
     mapping(bytes32 => uint256) private _nftAmounts;
-
-    constructor() {}
 
     function viewUserInfo(address account_)
         external
@@ -110,12 +104,12 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
     function pendingRewards(address account_) public view returns (uint256) {
         UserInfo storage user = _userInfo[account_];
 
-        uint256 fromTimestamp = user.lastRewardTimestamp < _startTime
-            ? _startTime
+        uint256 fromTimestamp = user.lastRewardTimestamp < stakingParams.startTime
+            ? stakingParams.startTime
             : user.lastRewardTimestamp;
-        uint256 toTimestamp = block.timestamp < _endTime
+        uint256 toTimestamp = block.timestamp < stakingParams.endTime
             ? block.timestamp
-            : _endTime;
+            : stakingParams.endTime;
         if (toTimestamp < fromTimestamp) {
             return user.rewards;
         }
@@ -140,7 +134,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
         whenNotPaused
     {
         require(
-            IERC1155(_stakeNftAddress).isApprovedForAll(
+            IERC1155Upgradeable(stakingParams.stakeNftAddress).isApprovedForAll(
                 _msgSender(),
                 address(this)
             ),
@@ -158,14 +152,13 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
 
         UserInfo storage user = _userInfo[_msgSender()];
 
-        uint256 stakedNftCount = user.stakedNfts.length();
         uint256 stakedNftAmount = userStakedNFTAmount(_msgSender());
         require(
-            stakedNftAmount.add(amountToStake) <= _maxNftsPerUser,
+            stakedNftAmount.add(amountToStake) <= stakingParams.maxNftsPerUser,
             "Exceeds the max limit per user"
         );
         require(
-            _totalStakedNfts.add(amountToStake) <= _maxStakedNfts,
+            _totalStakedNfts.add(amountToStake) <= stakingParams.maxStakedNfts,
             "Exceeds the max limit"
         );
 
@@ -179,9 +172,9 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             emit Harvested(_msgSender(), amountSent);
         }
 
-        if (amountToStake > 0 && _depositFeePerNft > 0) {
+        if (amountToStake > 0 && stakingParams.depositFeePerNft > 0) {
             require(
-                msg.value >= amountToStake.mul(_depositFeePerNft),
+                msg.value >= amountToStake.mul(stakingParams.depositFeePerNft),
                 "Insufficient deposit fee"
             );
             uint256 adminFeePercent = INFTStakingFactory(factory)
@@ -192,13 +185,13 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             payable(adminFeeAddress).transfer(
                 msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
             );
-            payable(_creatorAddress).transfer(
+            payable(stakingParams.creatorAddress).transfer(
                 msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)
             );
         }
 
         for (uint256 i = 0; i < countToStake; i++) {
-            IERC1155(_stakeNftAddress).safeTransferFrom(
+            IERC1155Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
                 _msgSender(),
                 address(this),
                 tokenIdList_[i],
@@ -247,9 +240,9 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             }
         }
 
-        if (amountToWithdraw > 0 && _withdrawFeePerNft > 0) {
+        if (amountToWithdraw > 0 && stakingParams.withdrawFeePerNft > 0) {
             require(
-                msg.value >= amountToWithdraw.mul(_withdrawFeePerNft),
+                msg.value >= amountToWithdraw.mul(stakingParams.withdrawFeePerNft),
                 "Insufficient withdraw fee"
             );
             uint256 adminFeePercent = INFTStakingFactory(factory)
@@ -260,7 +253,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             payable(adminFeeAddress).transfer(
                 msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
             );
-            payable(_creatorAddress).transfer(
+            payable(stakingParams.creatorAddress).transfer(
                 msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)
             );
         }
@@ -276,7 +269,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
                 (nftAmounts > 0 && nftAmounts >= amountList_[i]),
                 "insufficient withdraw amount"
             );
-            IERC1155(_stakeNftAddress).safeTransferFrom(
+            IERC1155Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
                 address(this),
                 _msgSender(),
                 tokenIdList_[i],
