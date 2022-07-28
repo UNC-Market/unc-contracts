@@ -2,29 +2,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface INFTFactory {
 	function getMintFee() external view returns (uint256);	
 }
 
-contract SingleNFT is ERC721 {
+contract SingleNFT is ERC721Upgradeable {
     using SafeMath for uint256;    
 
-	bool private initialisable;
-    string public collection_name;
+	string public collection_name;
     string private collection_uri;
     bool public isPublic;
     address public factory;
     address private owner;
-    uint256 private royalties = 0; // 10 for 1%
+    uint256 private royalties; // 10 for 1%
 
     struct Item {
         uint256 id;
         address creator;
         string uri;       
     }
+
+
     uint256 public currentID;    
     mapping (uint256 => Item) public Items;
 
@@ -35,11 +36,6 @@ contract SingleNFT is ERC721 {
     event ItemCreated(uint256 id, address creator, string uri);
     event Burned(address owner, uint nftID);
 
-    constructor() ERC721("SingleNFT","ST") {
-        factory = msg.sender;
-        initialisable = true;	
-    }
-
     /**
 		Initialize from Swap contract
 	 */
@@ -49,19 +45,17 @@ contract SingleNFT is ERC721 {
         address creator,
         uint256 _royalties,
         bool bPublic
-    ) external {
-        require(msg.sender == factory, "Only for factory");
-        require(initialisable, "initialize() can be called only one time.");
-		initialisable = false;
+    ) public initializer {
+        factory = _msgSender();
         
         collection_uri = _uri;
         collection_name = _name;
         owner = creator;
         royalties = _royalties;
-        isPublic = bPublic;
+        isPublic = bPublic;  
+        royalties = 0;      
     }
 
-    
     /**
 		Change Collection Information
 	 */
@@ -89,18 +83,22 @@ contract SingleNFT is ERC721 {
             payable(factory).transfer(mintFee);
         }
 
+        require( _msgSender() == owner || isPublic,
+            "Only owner can add item"
+        );
+
         currentID = currentID.add(1);        
-        _safeMint(msg.sender, currentID);
-        Items[currentID] = Item(currentID, msg.sender, _tokenURI);
-        emit ItemCreated(currentID, msg.sender, _tokenURI);
+        _safeMint(_msgSender(), currentID);
+        Items[currentID] = Item(currentID, _msgSender(), _tokenURI);
+        emit ItemCreated(currentID, _msgSender(), _tokenURI);
         return currentID;
     }
 
     function burn(uint _tokenId) external returns (bool)  {
         require(_exists(_tokenId), "Token ID is invalid");
-        require(ERC721.ownerOf(_tokenId) == msg.sender, "only owner can burn");
+        require(ERC721Upgradeable.ownerOf(_tokenId) == _msgSender(), "only owner can burn");
         _burn(_tokenId);
-        emit Burned(msg.sender,_tokenId);
+        emit Burned(_msgSender(),_tokenId);
         return true;
     }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
@@ -10,7 +10,7 @@ interface INFTFactory {
 	function getMintFee() external view returns (uint256);	
 }
 
-contract MultipleNFT is ERC1155, AccessControl {
+contract MultipleNFT is ERC1155Upgradeable {
     using SafeMath for uint256;
 
     struct Item {
@@ -22,12 +22,11 @@ contract MultipleNFT is ERC1155, AccessControl {
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     
-    bool private initialisable;
     string public name;
     bool public isPublic;
     address public factory;
     address private owner;
-    uint256 private royalties = 0; // 10 for 1%
+    uint256 private royalties; // 10 for 1%
 
     uint256 public currentID;
     mapping (uint256 => Item) public Items;
@@ -39,34 +38,21 @@ contract MultipleNFT is ERC1155, AccessControl {
     event CollectionNameUpdated(string collection_name);
     event TokenUriUpdated(uint256 id, string uri);
 
-    constructor() ERC1155("MultipleNFT") {
-        factory = msg.sender;
-        initialisable = true;	
-    }
-
     /**
 		Initialize from Swap contract
 	 */
-    function initialize(string memory _name, string memory _uri, address creator, uint256 _royalties, bool bPublic ) external {
-        require(msg.sender == factory, "Only for factory");
-        require(initialisable, "initialize() can be called only one time.");
-		initialisable = false;
-        
+    function initialize(string memory _name, string memory _uri, address creator, uint256 _royalties, bool bPublic 
+    ) public initializer {
         _setURI(_uri);
+        factory = _msgSender();  
         name = _name;
         owner = creator;
         royalties = _royalties;
         isPublic = bPublic;
-
-        _setupRole(DEFAULT_ADMIN_ROLE, owner);
-        _setupRole(MINTER_ROLE, owner);
+        royalties = 0;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155, AccessControl) returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
-    }
-
+    
     /**
 		GET/SET Collection URI
 	 */
@@ -142,7 +128,7 @@ contract MultipleNFT is ERC1155, AccessControl {
         }
         
 
-        require( hasRole(MINTER_ROLE, msg.sender) || isPublic,
+        require( _msgSender() == owner || isPublic,
             "Only minter can add item"
         );
         require(supply > 0, "supply can not be 0");
@@ -151,17 +137,17 @@ contract MultipleNFT is ERC1155, AccessControl {
         currentID = currentID.add(1);
         if (supply > 0) {
             
-            _mint(msg.sender, currentID, supply, "Mint");
+            _mint(_msgSender(), currentID, supply, "Mint");
         }
 
-        Items[currentID] = Item(currentID, msg.sender, _uri, supply);
-        emit MultiItemCreated(currentID, _uri, supply, msg.sender);
+        Items[currentID] = Item(currentID, _msgSender(), _uri, supply);
+        emit MultiItemCreated(currentID, _uri, supply, _msgSender());
         return currentID;
     }
 
 
     function burn(address from, uint256 id, uint256 amount) external returns(bool){
-		uint256 nft_token_balance = balanceOf(msg.sender, id);
+		uint256 nft_token_balance = balanceOf(_msgSender(), id);
 		require(nft_token_balance > 0, "Only owner can burn");
         require(nft_token_balance >= amount, "invalid amount : amount have to be smaller than the balance");		
 		_burn(from, id, amount);
