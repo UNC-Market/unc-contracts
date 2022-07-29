@@ -12,7 +12,7 @@ async function main() {
   const signer = (await ethers.getSigners())[0]
   console.log('signer:', await signer.getAddress())
 
-  const feeAddress = '0x0BF373dBbEe2AC7Af7028Ae8027a090EACB9b596';
+  const feeAddress = process.env.FEE_ADDRESS;
   
   /**
    *  Deploy and Verify SingleAuction
