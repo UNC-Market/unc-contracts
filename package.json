@@ -12,6 +12,7 @@
     "deploy-nftcollection": "hardhat run scripts/deploy-nftcollection.js --network rinkeby",
     "deploy-marketplace": "hardhat run scripts/deploy-marketplace.js --network rinkeby",
     "deploy-staking": "hardhat run scripts/deploy-staking.js --network rinkeby",
+    "initialize-staking": "hardhat run scripts/initialize-staking.js --network rinkeby",
     "lint": "prettier-standard --format",
     "clean": "rimraf cache artifacts"
   },
