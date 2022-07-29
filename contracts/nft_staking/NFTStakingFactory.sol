@@ -65,10 +65,15 @@ contract NFTStakingFactory is OwnableUpgradeable {
     );
 
     function initialize(
-		address _adminFeeAddress
+		address _adminFeeAddress,
+        address _singleNFTStakingImplementation,
+        address _multipleNFTStakingImplementation
 	) public initializer {
         __Ownable_init();
-        adminFeeAddress = _adminFeeAddress;	
+        adminFeeAddress = _adminFeeAddress;
+        singleNFTStakingImplementation =_singleNFTStakingImplementation;
+        multipleNFTStakingImplementation = _multipleNFTStakingImplementation;
+        
         adminFeePercent = 100;
         depositFeePerNft = 0 ether;
         withdrawFeePerNft = 0 ether;
