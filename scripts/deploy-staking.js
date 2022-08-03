@@ -14,74 +14,60 @@ async function main() {
 
   const feeAddress = process.env.FEE_ADDRESS;
 
-  /**
-   * Deploy SingleNFTStaking Template
-   */
-  const SingleNFTStaking = await ethers.getContractFactory('SingleNFTStaking', { signer: (await ethers.getSigners())[0] })
-
-  const singleNFTStakingContract = await SingleNFTStaking.deploy();
-  await singleNFTStakingContract.deployed();
-  await sleep(30);
-  console.log("SingleNFTStaking template deployed to: ", singleNFTStakingContract.address);
-
-  // Verify SingleNFTStaking Template
-  try {
-    await hre.run('verify:verify', {
-      address: singleNFTStakingContract.address,
-      constructorArguments: []
-    })
-    console.log('SingleNFTStaking verified')
-  } catch (error) {
-    console.log('SingleNFTStaking verification failed : ', error)
-  }
-
 
   /**
-   * Deploy MultiNFTStaking Template
-   */
-  const MultiNFTStaking = await ethers.getContractFactory('MultiNFTStaking', { signer: (await ethers.getSigners())[0] })
-
-  const multiNFTStakingContract = await MultiNFTStaking.deploy();
-  await multiNFTStakingContract.deployed();
-  await sleep(30);
-  console.log("MultiNFTStaking template deployed to: ", multiNFTStakingContract.address);
-
-  // Verify MultiNFTStaking Template
-  try {
-    await hre.run('verify:verify', {
-      address: multiNFTStakingContract.address,
-      constructorArguments: []
-    })
-    console.log('MultiNFTStaking verified')
-  } catch (error) {
-    console.log('MultiNFTStaking verification failed : ', error)
-  }
-
-  /**
-  *  Deploy and Verify NFTStakingFactory
+  *  Deploy and Verify SingleNFTStakingFactory
   */
   {
-    const NFTStakingFactory = await ethers.getContractFactory('NFTStakingFactory', {
+    const SingleNFTStakingFactory = await ethers.getContractFactory('SingleNFTStakingFactory', {
       signer: (await ethers.getSigners())[0]
     });
-    const nftStakingFactoryContract = await upgrades.deployProxy(NFTStakingFactory, [feeAddress, singleNFTStakingContract.address, multiNFTStakingContract.address], { initializer: 'initialize' });
-    await nftStakingFactoryContract.deployed()
+    const singleNFTStakingFactoryContract = await upgrades.deployProxy(SingleNFTStakingFactory, [feeAddress], { initializer: 'initialize' });
+    await singleNFTStakingFactoryContract.deployed()
 
-    console.log('NFTStakingFactory proxy deployed: ', nftStakingFactoryContract.address)
+    console.log('SingleNFTStakingFactory proxy deployed: ', singleNFTStakingFactoryContract.address)
 
-    nftStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(nftStakingFactoryContract.address);
-    console.log('NFTStakingFactory Implementation address: ', nftStakingFactoryImplementation)
+    singleNFTStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(singleNFTStakingFactoryContract.address);
+    console.log('SingleNFTStakingFactory Implementation address: ', singleNFTStakingFactoryImplementation)
 
     await sleep(60);
-    // Verify NFTStakingFactory
+    // Verify SingleNFTStakingFactory
     try {
       await hre.run('verify:verify', {
-        address: nftStakingFactoryImplementation,
+        address: singleNFTStakingFactoryImplementation,
         constructorArguments: []
       })
-      console.log('NFTStakingFactory verified')
+      console.log('SingleNFTStakingFactory verified')
     } catch (error) {
-      console.log('NFTStakingFactory verification failed : ', error)
+      console.log('SingleNFTStakingFactory verification failed : ', error)
+    }
+  }
+
+  /**
+  *  Deploy and Verify MultiNFTStakingFactory
+  */
+   {
+    const MultiNFTStakingFactory = await ethers.getContractFactory('MultiNFTStakingFactory', {
+      signer: (await ethers.getSigners())[0]
+    });
+    const multiNFTStakingFactoryContract = await upgrades.deployProxy(MultiNFTStakingFactory, [feeAddress], { initializer: 'initialize' });
+    await multiNFTStakingFactoryContract.deployed()
+
+    console.log('MultiNFTStakingFactory proxy deployed: ', multiNFTStakingFactoryContract.address)
+
+    multiNFTStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(multiNFTStakingFactoryContract.address);
+    console.log('MultiNFTStakingFactory Implementation address: ', multiNFTStakingFactoryImplementation)
+
+    await sleep(60);
+    // Verify MultiNFTStakingFactory
+    try {
+      await hre.run('verify:verify', {
+        address: multiNFTStakingFactoryImplementation,
+        constructorArguments: []
+      })
+      console.log('MultiNFTStakingFactory verified')
+    } catch (error) {
+      console.log('MultiNFTStakingFactory verification failed : ', error)
     }
   }
 }
