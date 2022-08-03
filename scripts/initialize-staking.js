@@ -1,71 +1,91 @@
 require('dotenv').config()
 const hre = require('hardhat')
 
-const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay * 1000));
-
 async function main() {
-  const ethers = hre.ethers
-  const upgrades = hre.upgrades;
-  
+  const ethers = hre.ethers;  
+
   console.log('network:', await ethers.provider.getNetwork())
 
   const signer = (await ethers.getSigners())[0]
   console.log('signer:', await signer.getAddress())
 
-  const factoryAddress = '0xbfdc82b243263a4177456a2225014e3948a9d80c';
-  
-  const NFTStakingFactory = await ethers.getContractFactory('NFTStakingFactory', {
-    signer: (await ethers.getSigners())[0]
-  });
-
-  const nftStakingFactory = NFTStakingFactory.attach(factoryAddress);
+  const subscriptions = [
+    {
+      name: 'Basic',
+      period: 2592000, // 1 months
+      price: '1'
+    },
+    {
+      name: 'Standard',
+      period: 7776000, // 3 months
+      price: '3'
+    },
+    {
+      name: 'Premium',
+      period: 15552000, // 6 months
+      price: '5'
+    }
+  ];
+  const aprs = [
+    80, // 8 %
+    120, // 12 %
+    180, // 18 %
+  ];
 
   /**
-   * Add Subscriptions
-   */
+  * Initialize SingleNFTStakingFactory
+  */
   {
-    const subscriptions = [
-      {
-        name: 'Basic',
-        period: 2592000, // 1 months
-        price: '1'
-      },
-      {
-        name: 'Standard',
-        period: 7776000, // 3 months
-        price: '3'
-      },
-      {
-        name: 'Premium',
-        period: 15552000, // 6 months
-        price: '5'
-      }
-    ]
+    console.log('Initialize SingleNFTStakingFactory...')
+    const singleFactoryAddress = '0xbfdc82b243263a4177456a2225014e3948a9d80c';
+    const SingleNFTStakingFactory = await ethers.getContractFactory('SingleNFTStakingFactory', {
+      signer: (await ethers.getSigners())[0]
+    });
+    const singleNFTStakingFactory = SingleNFTStakingFactory.attach(singleFactoryAddress);
+    // Add Subscriptions    
     for (let index = 0; index < subscriptions.length; index++) {
       const subscription = subscriptions[index];
-      const tx = await nftStakingFactory.addSubscription(subscription.name, subscription.period, ethers.utils.parseEther(subscription.price));
+      const tx = await singleNFTStakingFactory.addSubscription(subscription.name, subscription.period, ethers.utils.parseEther(subscription.price));
       await tx.wait();
       console.log('Add subscription : ', JSON.stringify(subscription));
-    }    
+    }
+
+    // Add APR      
+    for (let index = 0; index < aprs.length; index++) {
+      const apr = aprs[index];
+      const tx = await singleNFTStakingFactory.addApr(apr);
+      await tx.wait();
+      console.log('Add apr : ', apr);
+    }
   }
 
   /**
-   * Add APR
-   */
-   {
-    const aprs = [
-      80, // 8 %
-      120, // 12 %
-      180, // 18 %
-    ]
+  * Initialize MultiNFTStakingFactory
+  */
+  {
+    console.log('Initialize MultiNFTStakingFactory...')
+    const multiFactoryAddress = '0xbfdc82b243263a4177456a2225014e3948a9d80c';
+    const MultiNFTStakingFactory = await ethers.getContractFactory('MultiNFTStakingFactory', {
+      signer: (await ethers.getSigners())[0]
+    });
+    const multiNFTStakingFactory = MultiNFTStakingFactory.attach(multiFactoryAddress);
+  
+    // Add Subscriptions    
+    for (let index = 0; index < subscriptions.length; index++) {
+      const subscription = subscriptions[index];
+      const tx = await multiNFTStakingFactory.addSubscription(subscription.name, subscription.period, ethers.utils.parseEther(subscription.price));
+      await tx.wait();
+      console.log('Add subscription : ', JSON.stringify(subscription));
+    }
+  
+    // Add APR      
     for (let index = 0; index < aprs.length; index++) {
       const apr = aprs[index];
-      const tx = await nftStakingFactory.addApr(apr);
+      const tx = await multiNFTStakingFactory.addApr(apr);
       await tx.wait();
       console.log('Add apr : ', apr);
-    }    
+    }
   }
-  
 
 }
 
