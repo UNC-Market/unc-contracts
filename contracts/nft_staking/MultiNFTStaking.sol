@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "./NFTStaking.sol";
 
-contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
+contract MultiNFTStaking is NFTStaking, ERC1155Holder {
     using SafeMath for uint256;
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;    
+    using EnumerableSet for EnumerableSet.UintSet;    
 
     struct UserInfo {
-        EnumerableSetUpgradeable.UintSet stakedNfts; // staked nft tokenid array
+        EnumerableSet.UintSet stakedNfts; // staked nft tokenid array
         uint256 rewards;
         uint256 lastRewardTimestamp;
     }
@@ -22,6 +22,10 @@ contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
 
     // nft amount of each (user, tokenId).
     mapping(bytes32 => uint256) private _nftAmounts;
+
+    constructor() NFTStaking() { 
+
+    }
 
     function viewUserInfo(address account_)
         external
@@ -134,7 +138,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
         whenNotPaused
     {
         require(
-            IERC1155Upgradeable(stakingParams.stakeNftAddress).isApprovedForAll(
+            IERC1155(stakingParams.stakeNftAddress).isApprovedForAll(
                 _msgSender(),
                 address(this)
             ),
@@ -191,7 +195,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
         }
 
         for (uint256 i = 0; i < countToStake; i++) {
-            IERC1155Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
+            IERC1155(stakingParams.stakeNftAddress).safeTransferFrom(
                 _msgSender(),
                 address(this),
                 tokenIdList_[i],
@@ -269,7 +273,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
                 (nftAmounts > 0 && nftAmounts >= amountList_[i]),
                 "insufficient withdraw amount"
             );
-            IERC1155Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
+            IERC1155(stakingParams.stakeNftAddress).safeTransferFrom(
                 address(this),
                 _msgSender(),
                 tokenIdList_[i],
