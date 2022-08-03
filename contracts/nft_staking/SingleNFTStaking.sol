@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721ReceiverUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "./NFTStaking.sol";
 
-contract SingleNFTStaking is NFTStaking, IERC721ReceiverUpgradeable {
+contract SingleNFTStaking is NFTStaking, IERC721Receiver {
     using SafeMath for uint256;
-    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;    
+    using EnumerableSet for EnumerableSet.UintSet;    
 
     struct UserInfo {
-        EnumerableSetUpgradeable.UintSet stakedNfts;
+        EnumerableSet.UintSet stakedNfts;
         uint256 rewards;
         uint256 lastRewardTimestamp;
     }
 
     // Info of each user that stakes LP tokens.
     mapping(address => UserInfo) private _userInfo;
+    constructor() NFTStaking() { 
+
+    }
 
     function viewUserInfo(address account_)
         external
@@ -97,7 +100,7 @@ contract SingleNFTStaking is NFTStaking, IERC721ReceiverUpgradeable {
         whenNotPaused
     {
         require(
-            IERC721Upgradeable(stakingParams.stakeNftAddress).isApprovedForAll(
+            IERC721(stakingParams.stakeNftAddress).isApprovedForAll(
                 _msgSender(),
                 address(this)
             ),
@@ -144,7 +147,7 @@ contract SingleNFTStaking is NFTStaking, IERC721ReceiverUpgradeable {
         }
 
         for (uint256 i = 0; i < countToStake; i++) {
-            IERC721Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
+            IERC721(stakingParams.stakeNftAddress).safeTransferFrom(
                 _msgSender(),
                 address(this),
                 tokenIdList_[i]
@@ -202,7 +205,7 @@ contract SingleNFTStaking is NFTStaking, IERC721ReceiverUpgradeable {
                 "Not staked this nft"
             );
 
-            IERC721Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
+            IERC721(stakingParams.stakeNftAddress).safeTransferFrom(
                 address(this),
                 _msgSender(),
                 tokenIdList_[i]
