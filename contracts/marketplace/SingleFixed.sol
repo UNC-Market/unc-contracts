@@ -107,12 +107,15 @@ contract SingleFixed is OwnableUpgradeable, ERC721HolderUpgradeable {
             require(msg.value >= totalAmount, "too small amount");
 
 			if(swapFee > 0) {
-				payable(feeAddress).transfer(feeAmount);	
+                (bool feeResult, ) = payable(feeAddress).call{value: feeAmount}("");
+        		require(feeResult, "Failed to send coin to feeAddress");
 			}	
 			if(collectionRoyalties > 0) {
-				payable(collectionOwner).transfer(creatorAmount);	
-			}				
-			payable(pair.owner).transfer(ownerAmount);
+                (bool creatorResult, ) = payable(collectionOwner).call{value: creatorAmount}("");
+        		require(creatorResult, "Failed to send coin to collectionOwner");					
+			}
+            (bool result, ) = payable(pair.owner).call{value: ownerAmount}("");
+        	require(result, "Failed to send coin to item owner");		
 
         } else {
             IERC20 governanceToken = IERC20(pairs[_id].tokenAdr);

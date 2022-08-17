@@ -19,10 +19,31 @@ async function main() {
   *  Deploy and Verify SingleNFTStakingFactory
   */
   {
+    /**
+     * Deploy SingleNFTStaking Template
+     */
+    const SingleNFTStaking = await ethers.getContractFactory('SingleNFTStaking', { signer: (await ethers.getSigners())[0] })
+
+    const singleNFTStakingContract = await SingleNFTStaking.deploy();
+    await singleNFTStakingContract.deployed();
+    await sleep(60);
+    console.log("SingleNFTStaking template deployed to: ", singleNFTStakingContract.address);
+
+    // Verify SingleNFTStaking Template
+    try {
+      await hre.run('verify:verify', {
+        address: singleNFTStakingContract.address,
+        constructorArguments: []
+      })
+      console.log('SingleNFTStaking verified')
+    } catch (error) {
+      console.log('SingleNFTStaking verification failed : ', error)
+    }
+
     const SingleNFTStakingFactory = await ethers.getContractFactory('SingleNFTStakingFactory', {
       signer: (await ethers.getSigners())[0]
     });
-    const singleNFTStakingFactoryContract = await upgrades.deployProxy(SingleNFTStakingFactory, [feeAddress], { initializer: 'initialize' });
+    const singleNFTStakingFactoryContract = await upgrades.deployProxy(SingleNFTStakingFactory, [feeAddress, singleNFTStakingContract.address], { initializer: 'initialize' });
     await singleNFTStakingFactoryContract.deployed()
 
     console.log('SingleNFTStakingFactory proxy deployed: ', singleNFTStakingFactoryContract.address)
@@ -46,11 +67,33 @@ async function main() {
   /**
   *  Deploy and Verify MultiNFTStakingFactory
   */
-   {
+  {
+
+    /**
+     * Deploy MultiNFTStaking Template
+     */
+    const MultiNFTStaking = await ethers.getContractFactory('MultiNFTStaking', { signer: (await ethers.getSigners())[0] })
+
+    const multiNFTStakingContract = await MultiNFTStaking.deploy();
+    await multiNFTStakingContract.deployed();
+    await sleep(60);
+    console.log("MultiNFTStaking template deployed to: ", multiNFTStakingContract.address);
+
+    // Verify MultiNFTStaking Template
+    try {
+      await hre.run('verify:verify', {
+        address: multiNFTStakingContract.address,
+        constructorArguments: []
+      })
+      console.log('MultiNFTStaking verified')
+    } catch (error) {
+      console.log('MultiNFTStaking verification failed : ', error)
+    }
+
     const MultiNFTStakingFactory = await ethers.getContractFactory('MultiNFTStakingFactory', {
       signer: (await ethers.getSigners())[0]
     });
-    const multiNFTStakingFactoryContract = await upgrades.deployProxy(MultiNFTStakingFactory, [feeAddress], { initializer: 'initialize' });
+    const multiNFTStakingFactoryContract = await upgrades.deployProxy(MultiNFTStakingFactory, [feeAddress, multiNFTStakingContract.address], { initializer: 'initialize' });
     await multiNFTStakingFactoryContract.deployed()
 
     console.log('MultiNFTStakingFactory proxy deployed: ', multiNFTStakingFactoryContract.address)

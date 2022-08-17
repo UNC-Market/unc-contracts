@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./StructDeclaration.sol";
-import "./MultiNFTStaking.sol";
 
 interface INFTStaking {
     function initialize(InitializeParam memory param) external;
@@ -22,6 +22,7 @@ contract MultiNFTStakingFactory is OwnableUpgradeable {
     uint256 public constant YEAR_TIMESTAMP = 31536000;
 
     address[] public stakings;
+    address private stakingImplementation;
     address private adminFeeAddress;
     uint256 private adminFeePercent; // 100 for 10 %
     uint256 private depositFeePerNft;
@@ -54,14 +55,25 @@ contract MultiNFTStakingFactory is OwnableUpgradeable {
         InitializeParam _param
     );
 
-    function initialize(address _adminFeeAddress) public initializer {
+    function initialize(address _adminFeeAddress, address _stakingImplementation) public initializer {
         __Ownable_init();
+        stakingImplementation = _stakingImplementation;
         adminFeeAddress = _adminFeeAddress;
 
         adminFeePercent = 100;
         depositFeePerNft = 0 ether;
         withdrawFeePerNft = 0 ether;
         currentSubscriptionsId = 0;
+    }
+
+    function updatestakingImplementation(address stakingImplementation_)
+        external
+        onlyOwner
+    {
+        stakingImplementation = stakingImplementation_;
+    }
+    function viewstakingImplementation() external view returns (address) {
+        return stakingImplementation;
     }
 
     function getAdminFeeAddress() external view returns (address) {
@@ -225,16 +237,12 @@ contract MultiNFTStakingFactory is OwnableUpgradeable {
         uint256 value = msg.value;
 
         {
-            require(value >= _subscription.price, "insufficient fee");
-            payable(adminFeeAddress).transfer(_subscription.price);
+            (bool result, ) = payable(adminFeeAddress).call{value: _subscription.price}("");
+        	require(result, "Failed to send subscription fee to admin");            
         }
 
         {
-            bytes memory bytecode = type(MultiNFTStaking).creationCode;
-            bytes32 salt = keccak256(abi.encodePacked(block.timestamp));
-            assembly {
-                staking := create2(0, add(bytecode, 32), mload(bytecode), salt)
-            }
+            staking = ClonesUpgradeable.clone(stakingImplementation);            
         }
 
         {
@@ -248,8 +256,10 @@ contract MultiNFTStakingFactory is OwnableUpgradeable {
                 require(
                     value >= _subscription.price.add(depositTokenAmount),
                     "insufficient balance"
-                );
-                payable(staking).transfer(depositTokenAmount);
+                );                
+                (bool result, ) = payable(staking).call{value: depositTokenAmount}("");
+        	    require(result, "Failed to send deposit Amount fee to staking");
+
             } else {
                 IERC20 governanceToken = IERC20(rewardTokenAddress);
                 require(
@@ -303,7 +313,8 @@ contract MultiNFTStakingFactory is OwnableUpgradeable {
     function withdrawBNB() external onlyOwner {
         uint256 balance = address(this).balance;
         require(balance > 0, "insufficient balance");
-        payable(msg.sender).transfer(balance);
+        (bool result, ) = payable(msg.sender).call{value: balance}("");
+        require(result, "Failed to withdraw balance");        
     }
 
     /**

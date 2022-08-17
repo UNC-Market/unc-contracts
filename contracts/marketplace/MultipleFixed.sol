@@ -111,18 +111,21 @@ contract MultipleFixed is OwnableUpgradeable, ERC1155HolderUpgradeable {
             require(msg.value >= tokenAmount, "too small amount");
 
 			if(swapFee > 0) {
-				payable(feeAddress).transfer(feeAmount);			
+				(bool result, ) = payable(feeAddress).call{value: feeAmount}("");
+        		require(result, "Failed to send coin to feeAddress");
 			}	
 			if(collectionRoyalties > 0) {
-				payable(collectionOwner).transfer(creatorAmount);	
-			}				
-			payable(item.owner).transfer(ownerAmount);			
+				(bool result, ) = payable(collectionOwner).call{value: creatorAmount}("");
+        		require(result, "Failed to send coin to collectionOwner");
+			}
+			(bool ownerResult, ) = payable(item.owner).call{value: ownerAmount}("");
+        	require(ownerResult, "Failed to send coin to item owner");
         } else {
             IERC20 governanceToken = IERC20(pairs[_id].tokenAdr);	
 
 			require(governanceToken.transferFrom(msg.sender, address(this), tokenAmount), "insufficient token balance");		
 			// transfer governance token to admin
-			if(swapFee > 0) {
+			if(swapFee > 0) {				
 				require(governanceToken.transfer(feeAddress, feeAmount));		
 			}
 

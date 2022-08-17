@@ -19,7 +19,7 @@ async function main() {
 
   const singleNFTContract = await SingleNFT.deploy();
   await singleNFTContract.deployed();
-  await sleep(30);
+  await sleep(60);
   console.log("SingleNFT template deployed to: ", singleNFTContract.address);
 
   // Verify SingleNFT Template
@@ -40,7 +40,7 @@ async function main() {
 
   const multipleNFTContract = await MultipleNFT.deploy();
   await multipleNFTContract.deployed();
-  await sleep(30);
+  await sleep(60);
   console.log("MultipleNFT template deployed to: ", multipleNFTContract.address);
 
   // Verify MultipleNFT Template

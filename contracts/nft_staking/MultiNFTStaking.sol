@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 
 import "./NFTStaking.sol";
 
-contract MultiNFTStaking is NFTStaking, ERC1155Holder {
+contract MultiNFTStaking is NFTStaking, ERC1155HolderUpgradeable {
     using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.UintSet;    
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;    
 
     struct UserInfo {
-        EnumerableSet.UintSet stakedNfts; // staked nft tokenid array
+        EnumerableSetUpgradeable.UintSet stakedNfts; // staked nft tokenid array
         uint256 rewards;
         uint256 lastRewardTimestamp;
     }
@@ -22,10 +22,6 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
 
     // nft amount of each (user, tokenId).
     mapping(bytes32 => uint256) private _nftAmounts;
-
-    constructor() NFTStaking() { 
-
-    }
 
     function viewUserInfo(address account_)
         external
@@ -138,7 +134,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
         whenNotPaused
     {
         require(
-            IERC1155(stakingParams.stakeNftAddress).isApprovedForAll(
+            IERC1155Upgradeable(stakingParams.stakeNftAddress).isApprovedForAll(
                 _msgSender(),
                 address(this)
             ),
@@ -186,16 +182,18 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             uint256 creatorFeePercent = PERCENTS_DIVIDER.sub(adminFeePercent);
             address adminFeeAddress = INFTStakingFactory(factory).getAdminFeeAddress();
 
-            payable(adminFeeAddress).transfer(
-                msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
-            );
-            payable(stakingParams.creatorAddress).transfer(
-                msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)
-            );
+            if (adminFeePercent > 0) {
+                (bool result, ) = payable(adminFeeAddress).call{value: msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)}("");
+        	    require(result, "Failed to send fee to admin");
+            }
+            if (creatorFeePercent > 0) {
+                (bool result, ) = payable(stakingParams.creatorAddress).call{value: msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)}("");
+        	    require(result, "Failed to send fee to staking creator");
+            }            
         }
 
         for (uint256 i = 0; i < countToStake; i++) {
-            IERC1155(stakingParams.stakeNftAddress).safeTransferFrom(
+            IERC1155Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
                 _msgSender(),
                 address(this),
                 tokenIdList_[i],
@@ -254,12 +252,14 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
             uint256 creatorFeePercent = PERCENTS_DIVIDER.sub(adminFeePercent);
             address adminFeeAddress = INFTStakingFactory(factory).getAdminFeeAddress();
 
-            payable(adminFeeAddress).transfer(
-                msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)
-            );
-            payable(stakingParams.creatorAddress).transfer(
-                msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)
-            );
+            if (adminFeePercent > 0) {
+                (bool result, ) = payable(adminFeeAddress).call{value: msg.value.mul(adminFeePercent).div(PERCENTS_DIVIDER)}("");
+        	    require(result, "Failed to send fee to admin");
+            }
+            if (creatorFeePercent > 0) {
+                (bool result, ) = payable(stakingParams.creatorAddress).call{value: msg.value.mul(creatorFeePercent).div(PERCENTS_DIVIDER)}("");
+        	    require(result, "Failed to send fee to staking creator");
+            }
         }
 
         for (uint256 i = 0; i < countToWithdraw; i++) {
@@ -273,7 +273,7 @@ contract MultiNFTStaking is NFTStaking, ERC1155Holder {
                 (nftAmounts > 0 && nftAmounts >= amountList_[i]),
                 "insufficient withdraw amount"
             );
-            IERC1155(stakingParams.stakeNftAddress).safeTransferFrom(
+            IERC1155Upgradeable(stakingParams.stakeNftAddress).safeTransferFrom(
                 address(this),
                 _msgSender(),
                 tokenIdList_[i],

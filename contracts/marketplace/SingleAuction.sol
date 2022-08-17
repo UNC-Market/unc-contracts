@@ -143,13 +143,16 @@ contract SingleAuction is OwnableUpgradeable, ERC721HolderUpgradeable {
             uint256 _sellerValue = lastBid.bidPrice.sub(_feeValue).sub(_creatorValue);
             
             if (myAuction.tokenAdr == address(0x0)) {
+                (bool ownerResult, ) = payable(myAuction.owner).call{value: _sellerValue}("");
+        		require(ownerResult, "Failed to send coin to owner");
                 
-                payable(myAuction.owner).transfer(_sellerValue);
                 if(_feeValue > 0){
-                    payable(feeAddress).transfer(_feeValue);          
+                    (bool feeResult, ) = payable(feeAddress).call{value: _feeValue}("");
+        		    require(feeResult, "Failed to send coin to feeAddress");       
                 }
                 if(_creatorValue > 0){
-                    payable(collectionOwner).transfer(_creatorValue);          
+                    (bool creatorResult, ) = payable(collectionOwner).call{value: _creatorValue}("");
+        		    require(creatorResult, "Failed to send coin to feeAddress");          
                 }                     
                 
             } else {
@@ -199,7 +202,8 @@ contract SingleAuction is OwnableUpgradeable, ERC721HolderUpgradeable {
             require(msg.value >= tempAmount, "too small amount");
             require(msg.value >= amount, "too small balance");
             if( bidsLength > 0 ) {
-                payable(lastBid.from).transfer(lastBid.bidPrice);
+                (bool result, ) = payable(lastBid.from).call{value: lastBid.bidPrice}("");
+        		require(result, "Failed to send coin to last bidder");
             }
 
         } else {

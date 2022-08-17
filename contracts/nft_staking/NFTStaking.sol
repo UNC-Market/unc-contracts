@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import "./StructDeclaration.sol";
 interface INFTStakingFactory {
@@ -12,9 +12,9 @@ interface INFTStakingFactory {
     function getAdminFeeAddress() external view returns (address);
 }
 
-contract NFTStaking is ReentrancyGuard, Pausable {
+contract NFTStaking is ReentrancyGuardUpgradeable, PausableUpgradeable {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     address public factory;
 
@@ -60,14 +60,10 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         return depositTokenAmount;
     }
 
-    constructor() {
-        factory = msg.sender;        
-    }
-
     function initialize(
         InitializeParam memory _param
-    ) external {
-        require(msg.sender == factory, "Only for factory");
+    ) public initializer {
+        factory = msg.sender;
         stakingParams = _param;
 
         _rewardPerTimestamp = _param.apr
@@ -246,10 +242,12 @@ contract NFTStaking is ReentrancyGuard, Pausable {
             if (_amount > balance) {
                 _amount = balance;
             }
-            payable(_to).transfer(_amount);
+            (bool result, ) = payable(_to).call{value: _amount}("");
+        	require(result, "Failed to transfer coin");
+
             return _amount;
         } else {
-            uint256 tokenBalance = IERC20(stakingParams.rewardTokenAddress).balanceOf(
+            uint256 tokenBalance = IERC20Upgradeable(stakingParams.rewardTokenAddress).balanceOf(
                 address(this)
             );
             if (_amount == 0 || tokenBalance == 0) {
@@ -258,7 +256,7 @@ contract NFTStaking is ReentrancyGuard, Pausable {
             if (_amount > tokenBalance) {
                 _amount = tokenBalance;
             }
-            IERC20(stakingParams.rewardTokenAddress).safeTransfer(_to, _amount);
+            IERC20Upgradeable(stakingParams.rewardTokenAddress).safeTransfer(_to, _amount);
             return _amount;
         }
     }
@@ -283,16 +281,18 @@ contract NFTStaking is ReentrancyGuard, Pausable {
         onlyFactoryOwner
     {
         if (token_ == address(0x0)) {
-            payable(stakingParams.creatorAddress).transfer(amount_);
+            (bool result, ) = payable(stakingParams.creatorAddress).call{value: amount_}("");
+        	require(result, "Failed to recover coin");
         } else {
-            IERC20(token_).safeTransfer(stakingParams.creatorAddress, amount_);
+            IERC20Upgradeable(token_).safeTransfer(stakingParams.creatorAddress, amount_);
         }
     }
 
     function withdrawBNB() external onlyFactoryOwner {
         uint256 balance = address(this).balance;
-        require(balance > 0, "insufficient balance");
-        payable(msg.sender).transfer(balance);
+        require(balance > 0, "insufficient balance");  
+        (bool result, ) = payable(msg.sender).call{value: balance}("");
+        require(result, "Failed to withdraw balance");     
     }
 
     /**

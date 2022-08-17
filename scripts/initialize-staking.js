@@ -37,7 +37,7 @@ async function main() {
   */
   {
     console.log('Initialize SingleNFTStakingFactory...')
-    const singleFactoryAddress = '0x2a7e9cd0e3c3a8305ac020d04cb39c46b66ff39a';
+    const singleFactoryAddress = '0x89ae6e2809f390e00bf3138f98f232404167879d';
     const SingleNFTStakingFactory = await ethers.getContractFactory('SingleNFTStakingFactory', {
       signer: (await ethers.getSigners())[0]
     });
@@ -64,7 +64,7 @@ async function main() {
   */
   {
     console.log('Initialize MultiNFTStakingFactory...')
-    const multiFactoryAddress = '0x83002f8e0ecd8900ce1eeb20460bdc8a13cd1671';
+    const multiFactoryAddress = '0x2ecb75bfc973bc9c4bf20d977a27722250da7bbc';
     const MultiNFTStakingFactory = await ethers.getContractFactory('MultiNFTStakingFactory', {
       signer: (await ethers.getSigners())[0]
     });

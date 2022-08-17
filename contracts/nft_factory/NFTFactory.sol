@@ -85,7 +85,8 @@ contract NFTFactory is OwnableUpgradeable {
 	function withdrawBNB() external onlyOwner {
 		uint balance = address(this).balance;
 		require(balance > 0, "insufficient balance");
-		payable(msg.sender).transfer(balance);
+		(bool result, ) = payable(msg.sender).call{value: balance}("");
+        require(result, "Failed to withdraw balance");		
 	}
 
 	/**
