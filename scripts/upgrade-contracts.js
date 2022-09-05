@@ -15,7 +15,7 @@ async function main() {
   /**
    * Upgrade MultipleFixed
    */
-   const multipleFixedAddress = "0xff00091ee99de32429889253f147799804bfdb11";
+   const multipleFixedAddress = "0x3a12fbd965ca1b8358b6800a638ded2728b267d5";
 
    const MultipleFixedV2 = await ethers.getContractFactory('MultipleFixed', {
      signer: (await ethers.getSigners())[0]
