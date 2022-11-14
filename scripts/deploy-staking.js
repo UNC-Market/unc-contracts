@@ -48,7 +48,7 @@ async function main() {
 
     console.log('SingleNFTStakingFactory proxy deployed: ', singleNFTStakingFactoryContract.address)
 
-    singleNFTStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(singleNFTStakingFactoryContract.address);
+    const singleNFTStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(singleNFTStakingFactoryContract.address);
     console.log('SingleNFTStakingFactory Implementation address: ', singleNFTStakingFactoryImplementation)
 
     await sleep(60);
@@ -98,7 +98,7 @@ async function main() {
 
     console.log('MultiNFTStakingFactory proxy deployed: ', multiNFTStakingFactoryContract.address)
 
-    multiNFTStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(multiNFTStakingFactoryContract.address);
+    const multiNFTStakingFactoryImplementation = await upgrades.erc1967.getImplementationAddress(multiNFTStakingFactoryContract.address);
     console.log('MultiNFTStakingFactory Implementation address: ', multiNFTStakingFactoryImplementation)
 
     await sleep(60);
