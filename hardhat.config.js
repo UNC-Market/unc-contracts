@@ -5,12 +5,12 @@ require('@openzeppelin/hardhat-upgrades');
 
 module.exports = {
   networks: {
-    bsc: {
-      url: process.env.BSC_NODE_URL,
+    mainnet: {
+      url: process.env.MAINNET_NODE_URL,
       accounts: [process.env.PRIVATE_KEY]
     },
-    rinkeby: {
-      url: process.env.RINKEBY_NODE_URL,
+    goerli: {
+      url: process.env.GOERLI_NODE_URL,
       accounts: [process.env.PRIVATE_KEY]
     }
   },
